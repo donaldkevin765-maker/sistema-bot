@@ -6,7 +6,7 @@ import random
 import re
 from typing import Optional
 
-from playwright.async_page import Page
+from playwright.async_api import Page
 
 logger = logging.getLogger(__name__)
 

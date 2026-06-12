@@ -4,6 +4,7 @@ import asyncio
 import logging
 import random
 import time
+from enum import Enum
 from typing import Optional, Callable
 
 from playwright.async_api import Page

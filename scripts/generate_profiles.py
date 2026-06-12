@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.behavior.identity_generator import IdentityGenerator
 from src.behavior.biological_schedule import BiologicalScheduler
-from src.database import init_db, inserisci_bot
+from database import init_db, inserisci_bot
 
 
 USER_AGENTS_MOBILE = [

@@ -61,7 +61,7 @@ PHASE_CONFIG = {
         "login_only": False,
         "description": "Regime ridotto. Account considerato reale.",
     },
-    WarmupPhase.STABLE: {
+    WarmupPhase.STABILE: {
         "duration_days": -1,
         "max_likes_per_day": 15,
         "max_follows_per_day": 5,
@@ -105,7 +105,7 @@ class WarmupScheduler:
             end = start + timedelta(days=days)
             if start <= now < end:
                 return phase
-        return WarmupPhase.STABLE
+        return WarmupPhase.STABILE
 
     def get_phase_config(self, now: Optional[datetime] = None) -> dict:
         phase = self.get_current_phase(now)
