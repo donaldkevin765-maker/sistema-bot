@@ -1,0 +1,373 @@
+from __future__ import annotations
+
+import asyncio
+import logging
+import os
+import random
+from datetime import datetime
+from typing import Optional
+
+from playwright.async_api import async_playwright
+
+from database import (
+    init_db, inserisci_bot, aggiorna_bot, get_bot,
+    registra_attivita, get_attivita, lista_bot,
+)
+from src.hardware.watchdog import ThermalWatchdog
+from src.network.tcp_fingerprint import TCPFingerprintSpoofer, OSTarget
+from src.network.dns_manager import DNSManager
+from src.network.tunnel import TunnelEffectRecovery
+from src.network.geo_ip import GeoIPService
+from src.android.adb_manager import ADBManager
+from src.android.sms_interceptor import SMSInterceptor
+from src.android.sensor_spoofer import SensorSpoofer
+from src.android.carrot_multi_carrier import CarrotMultiCarrier
+from src.behavior.micro_distraction import MicroDistraction
+from src.behavior.accidental_clicks import AccidentalClicker
+from src.behavior.biological_schedule import BiologicalScheduler
+from src.behavior.wpm_reader import WPMReader
+from src.behavior.shadow_prewarm import ShadowPrewarmer
+from src.behavior.adaptive_speed import AdaptiveSpeed
+from src.behavior.path_dependence import PathDependence
+from src.browser.font_spoofer import FontSpoofer
+from src.browser.viewport_variator import ViewportVariator
+from src.browser.touch_events import TouchEventForcer
+from src.browser.audio_noise import AudioContextNoiseInjector
+from src.browser.resource_limiter import ResourceLimiter
+from src.browser.http_cache import HttpCacheManager
+from src.browser.stealth_amplified import build_full_stealth_script
+from src.security.isolation import CrossContaminationGuard
+from src.security.shadowban_monitor import ShadowBanMonitor
+from src.security.cookie_encryption import CookieEncryption
+from src.bot.behaviors.youtube_warmer import youtube_warm
+from src.bot.behaviors.tiktok_warmer import tiktok_warm
+from src.bot.behaviors.instagram_warmer import instagram_warm
+
+logger = logging.getLogger(__name__)
+
+
+class SistemaBot:
+    def __init__(self):
+        self._running = False
+        self._playwright = None
+        self._browser = None
+        self._bots: dict[int, dict] = {}
+
+        self.watchdog = ThermalWatchdog(
+            pause_threshold=40.0,
+            resume_threshold=37.0,
+            on_pause=self._on_thermal_pause,
+            on_resume=self._on_thermal_resume,
+        )
+        self.tcp_spoofer = TCPFingerprintSpoofer(OSTarget.ANDROID)
+        self.dns_manager = DNSManager()
+        self.resource_limiter = ResourceLimiter()
+        self.isolation = CrossContaminationGuard()
+        self.tunnel = TunnelEffectRecovery()
+
+        self.font_spoofer = FontSpoofer()
+        self.viewport = ViewportVariator(base_width=412, base_height=915)
+        self.touch = TouchEventForcer()
+        self.audio_noise = AudioContextNoiseInjector()
+        self.cache_manager = HttpCacheManager()
+
+        self.geo = GeoIPService()
+        self.carrier = CarrotMultiCarrier()
+
+        self.shadowban_monitors: dict[int, ShadowBanMonitor] = {}
+        self.biological_schedules: dict[int, BiologicalScheduler] = {}
+        self.adaptive_speeds: dict[int, AdaptiveSpeed] = {}
+        self.path_deps: dict[int, PathDependence] = {}
+        self.cookie_encryption = CookieEncryption(
+            master_key=os.getenv("COOKIE_ENCRYPTION_KEY", "default-dev-key-change-in-production")
+        )
+
+        self._paused = False
+        self._warmers: dict[int, ShadowPrewarmer] = {}
+
+    async def _on_thermal_pause(self, reading):
+        self._paused = True
+        logger.warning(f"[SISTEMA] PAUSA TERMICA a {reading.temperature}°C")
+        for bot_id in self._bots:
+            registra_attivita(bot_id, "pausa_termica",
+                              descrizione=f"Pausa a {reading.temperature}°C",
+                              success=True)
+
+    async def _on_thermal_resume(self, reading):
+        self._paused = False
+        logger.info(f"[SISTEMA] RIPRESA TERMICA a {reading.temperature}°C")
+
+    async def init_system(self):
+        init_db()
+        logger.info("[SISTEMA] Database inizializzato.")
+
+        self.tcp_spoofer.apply()
+        logger.info("[SISTEMA] TCP fingerprint spoofed.")
+
+        self.resource_limiter.calculate_max_parallel()
+        logger.info(f"[SISTEMA] Max bot paralleli: {self.resource_limiter.max_parallel}")
+
+        self._playwright = await async_playwright().start()
+        self._browser = await self._playwright.chromium.launch(
+            headless=True,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-infobars",
+                "--disable-dev-shm-usage",
+            ],
+        )
+        logger.info("[SISTEMA] Browser avviato.")
+
+        carrier_stats = self.carrier.stats()
+        if carrier_stats["carriers"]:
+            logger.info(f"[SISTEMA] Multi-carrier attivo: {carrier_stats['carriers']}")
+        else:
+            logger.info("[SISTEMA] Nessun carrier registrato (single-phone mode)")
+
+    async def run_bot(self, bot_id: int) -> dict:
+        bot_data = get_bot(bot_id)
+        if not bot_data:
+            return {"error": "Bot non trovato"}
+
+        schedule = self.biological_schedules.get(bot_id)
+        if schedule and not schedule.is_active():
+            logger.info(f"Bot {bot_id}: in finestra di sonno. Salto.")
+            return {"skipped": "sleep_window"}
+
+        if self._paused:
+            logger.info(f"Bot {bot_id}: sistema in pausa termica. Salto.")
+            return {"skipped": "thermal_pause"}
+
+        if not await self.resource_limiter.wait_and_acquire(timeout=60.0):
+            return {"skipped": "resource_limit"}
+
+        speed = self.adaptive_speeds.get(bot_id, AdaptiveSpeed(bot_id))
+        self.adaptive_speeds[bot_id] = speed
+
+        if speed.should_skip_action():
+            logger.warning(f"Bot {bot_id}: troppi errori recenti, skip azione.")
+            self.resource_limiter.release()
+            return {"skipped": "adaptive_speed_skip"}
+
+        pd = self.path_deps.get(bot_id, PathDependence(bot_id))
+        self.path_deps[bot_id] = pd
+
+        context = None
+        page = None
+        result = {}
+        start_time = datetime.utcnow()
+
+        try:
+            cache_args = self.cache_manager.get_browser_args(bot_id)
+
+            context = await self._browser.new_context(
+                user_agent=bot_data["user_agent"],
+                viewport=bot_data.get("screen_resolution", "412x915").split("x"),
+                timezone_id=bot_data.get("timezone", "Europe/Rome"),
+                locale=bot_data.get("locale", "it-IT"),
+                is_mobile=True,
+                has_touch=True,
+                device_scale_factor=2,
+            )
+
+            stealth = build_full_stealth_script(
+                str(bot_data.get("canvas_seed", bot_id)), bot_id
+            )
+            await context.add_init_script(stealth)
+
+            page = await context.new_page()
+            self._bots[bot_id] = {"context": context, "page": page, "started": start_time}
+
+            if bot_data.get("stato") == "WARMING":
+                warmer = self._warmers.get(bot_id)
+                if not warmer:
+                    warmer = ShadowPrewarmer(seed=bot_id)
+                    self._warmers[bot_id] = warmer
+                await warmer.prewarm_session(page)
+                aggiorna_bot(bot_id, stato="READY")
+                logger.info(f"Bot {bot_id}: pre-riscaldamento completato, stato -> READY")
+
+            distraction = MicroDistraction()
+            clicker = AccidentalClicker()
+
+            piattaforma = bot_data.get("piattaforma", "youtube")
+            warm_result = None
+
+            if piattaforma == "youtube":
+                watch_time_min = max(45, int(os.getenv("WATCH_TIME_MIN", "120")))
+                watch_time_max = max(90, int(os.getenv("WATCH_TIME_MAX", "240")))
+                keyword = os.getenv("DEFAULT_KEYWORD", "music")
+
+                warm_result = await youtube_warm(
+                    page=page,
+                    keyword=keyword,
+                    seed=bot_id,
+                    watch_time_range=(watch_time_min, watch_time_max),
+                )
+                result["youtube"] = warm_result
+
+            elif piattaforma == "tiktok":
+                watch_time_min = max(30, int(os.getenv("TIKTOK_WATCH_TIME_MIN", "60")))
+                watch_time_max = max(60, int(os.getenv("TIKTOK_WATCH_TIME_MAX", "180")))
+                hashtag = os.getenv("TIKTOK_DEFAULT_HASHTAG", "music")
+
+                warm_result = await tiktok_warm(
+                    page=page,
+                    hashtag=hashtag,
+                    seed=bot_id,
+                    watch_time_range=(watch_time_min, watch_time_max),
+                )
+                result["tiktok"] = warm_result
+
+            elif piattaforma == "instagram":
+                watch_time_min = max(20, int(os.getenv("INSTAGRAM_WATCH_TIME_MIN", "30")))
+                watch_time_max = max(40, int(os.getenv("INSTAGRAM_WATCH_TIME_MAX", "90")))
+                hashtag = os.getenv("INSTAGRAM_DEFAULT_HASHTAG", "music")
+
+                warm_result = await instagram_warm(
+                    page=page,
+                    hashtag=hashtag,
+                    seed=bot_id,
+                    watch_time_range=(watch_time_min, watch_time_max),
+                )
+                result["instagram"] = warm_result
+
+            if warm_result:
+                registra_attivita(
+                    bot_id=bot_id,
+                    tipo_azione=f"{piattaforma}_warm",
+                    descrizione=f"Warm: {warm_result.get(warm_result.get('hashtag', 'music'), warm_result.get('keyword', 'music'))}",
+                    ip_utilizzato=bot_data.get("ip_address"),
+                    user_agent=bot_data.get("user_agent"),
+                    canvas_seed=bot_data.get("canvas_seed"),
+                    success=warm_result.get("status") == "ok",
+                    durata_ms=int(
+                        (datetime.utcnow() - start_time).total_seconds() * 1000
+                    ),
+                )
+
+            await distraction.maybe_distract(page, seed=bot_id + 100)
+            await clicker.maybe_accidental_click(page, seed=bot_id + 200)
+            await clicker.accidental_scroll(page, seed=bot_id + 300)
+
+            result["bot_id"] = bot_id
+            result["status"] = "ok"
+            result["duration"] = (datetime.utcnow() - start_time).total_seconds()
+            result["paused_for_thermal"] = self._paused
+
+            speed.record_success()
+
+        except Exception as e:
+            logger.error(f"Bot {bot_id} error: {e}")
+            speed.record_error()
+            registra_attivita(
+                bot_id=bot_id,
+                tipo_azione="errore",
+                descrizione=str(e),
+                success=False,
+                error_message=str(e),
+            )
+            aggiorna_bot(bot_id, error_count=get_bot(bot_id).get("error_count", 0) + 1)
+            result["error"] = str(e)
+            result["status"] = "error"
+
+        finally:
+            self.resource_limiter.release()
+            if context:
+                try:
+                    await context.close()
+                except Exception:
+                    pass
+            self._bots.pop(bot_id, None)
+
+        return result
+
+    async def start_fleet(self, piattaforma: Optional[str] = None):
+        self._running = True
+        await self.watchdog.start()
+
+        bots = lista_bot(piattaforma=piattaforma, stato="READY")
+        if not bots:
+            bots = lista_bot(piattaforma=piattaforma)
+            logger.info(f"Nessun bot READY trovato, uso tutti i {len(bots)} bot.")
+
+        logger.info(f"[FLOTTA] Avvio {len(bots)} bot su {piattaforma or 'tutte le piattaforme'}")
+
+        for bot in bots:
+            bid = bot["bot_id"]
+            if bid not in self.biological_schedules:
+                self.biological_schedules[bid] = BiologicalScheduler(
+                    bot_id=bid, timezone_str="Europe/Rome"
+                )
+            if bid not in self.shadowban_monitors:
+                self.shadowban_monitors[bid] = ShadowBanMonitor(bot_id=bid)
+            if bid not in self.adaptive_speeds:
+                self.adaptive_speeds[bid] = AdaptiveSpeed(bot_id=bid)
+            if bid not in self.path_deps:
+                self.path_deps[bid] = PathDependence(bot_id=bid)
+            self.carrier.assign_bot(bid)
+
+        semaphore = asyncio.Semaphore(self.resource_limiter.max_parallel)
+        tasks = []
+
+        async def run_with_semaphore(bot_id):
+            async with semaphore:
+                return await self.run_bot(bot_id)
+
+        for bot in bots:
+            if not self._running:
+                break
+            task = asyncio.create_task(run_with_semaphore(bot["bot_id"]))
+            tasks.append(task)
+            await asyncio.sleep(random.uniform(0.5, 2.0))
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        logger.info(f"[FLOTTA] Completati {len([r for r in results if not isinstance(r, Exception)])}/{len(tasks)} bot")
+
+    async def stop_fleet(self):
+        self._running = False
+        await self.watchdog.stop()
+        for bot_id in list(self._bots.keys()):
+            try:
+                await self._bots[bot_id]["context"].close()
+            except Exception:
+                pass
+        self._bots.clear()
+
+    async def shutdown(self):
+        await self.stop_fleet()
+        if self._browser:
+            await self._browser.close()
+        if self._playwright:
+            await self._playwright.stop()
+        self.tcp_spoofer.restore()
+        logger.info("[SISTEMA] Arrestato.")
+
+    async def setup_bot(
+        self,
+        username: str,
+        piattaforma: str,
+        user_agent: str,
+        ip_address: str,
+        canvas_seed: float,
+    ) -> int:
+        bot_id = inserisci_bot(
+            username=username,
+            piattaforma=piattaforma,
+            user_agent=user_agent,
+            ip_address=ip_address,
+            canvas_seed=canvas_seed,
+            canvas_fingerprint=f"fp_{canvas_seed}_{username}",
+        )
+        self.biological_schedules[bot_id] = BiologicalScheduler(
+            bot_id=bot_id,
+            timezone_str="Europe/Rome",
+        )
+        self.shadowban_monitors[bot_id] = ShadowBanMonitor(bot_id=bot_id)
+        self.adaptive_speeds[bot_id] = AdaptiveSpeed(bot_id=bot_id)
+        self.path_deps[bot_id] = PathDependence(bot_id=bot_id)
+        self.carrier.assign_bot(bot_id)
+        logger.info(f"[SISTEMA] Bot {bot_id} ({username}) registrato su {piattaforma}")
+        return bot_id

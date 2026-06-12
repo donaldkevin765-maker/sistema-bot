@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.env
+data/profiles/
+data/cache/
+data/logs/
+data/screenshots/
+data/bot_fleet.db
+*.egg-info/
+.venv/
