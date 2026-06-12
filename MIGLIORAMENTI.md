@@ -1,6 +1,6 @@
 100 MIGLIORAMENTI PER IL PROGETTO SISTEMA BOT
 ===============================================================================
-Stato: ✅ 28/100 completati (al 13/06/2026)
+Stato: ✅ 35/100 completati (al 13/06/2026)
 Legenda: ❌ = da fare, ✅ = fatto
 Organizzati per impatto (★ = basso, ★★★ = alto) e costo computazionale (● = gratis, ●● = leggero, ●●● = pesante)
 

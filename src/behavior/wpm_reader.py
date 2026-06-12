@@ -51,7 +51,8 @@ class WPMReader:
             text = await element.inner_text()
             reading_time = self.calculate_reading_time(text)
 
-            logger.debug(f"WPM: lettura di {len(re.findall(r'\\b\\w+\\b', text))} parole in {reading_time:.1f}s")
+            word_count = len(re.findall(r'\b\w+\b', text))
+            logger.debug(f"WPM: lettura di {word_count} parole in {reading_time:.1f}s")
 
             await asyncio.sleep(reading_time * self._rng.uniform(0.8, 1.2))
 
