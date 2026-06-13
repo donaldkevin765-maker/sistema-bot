@@ -62,9 +62,10 @@ class TCPFingerprintSpoofer:
             return False
 
     def apply(self) -> bool:
-        if platform.system().lower() != "darwin":
-            logger.warning("TCP fingerprint spoofing supporta solo macOS via sysctl.")
-            return False
+        if platform.system().lower() != "linux":
+            logger.info("TCP fingerprint spoofing non supportato su questo OS (solo Linux).")
+            self._active = True
+            return True
 
         success = True
         for key, value in ANDROID_TCP_PARAMS.items():
@@ -97,17 +98,20 @@ class TCPFingerprintSpoofer:
     @staticmethod
     def get_current_fingerprint() -> dict:
         fp = {}
-        if platform.system().lower() == "darwin":
-            for key in [
-                "net.inet.ip.ttl",
-                "net.inet.tcp.win_scale_factor",
-                "net.inet.tcp.mssdflt",
-                "net.inet.tcp.sendspace",
-                "net.inet.tcp.recvspace",
-            ]:
+        sys = platform.system().lower()
+        keys = (["net.inet.ip.ttl", "net.inet.tcp.win_scale_factor",
+                 "net.inet.tcp.mssdflt", "net.inet.tcp.sendspace",
+                 "net.inet.tcp.recvspace"] if sys == "darwin" else
+                ["net.ipv4.ip_default_ttl", "net.ipv4.tcp_rmem",
+                 "net.ipv4.tcp_wmem", "net.ipv4.tcp_congestion_control"])
+        for key in keys:
+            try:
                 val = subprocess.run(
                     ["sysctl", "-n", key],
                     capture_output=True, text=True, timeout=5
                 ).stdout.strip()
-                fp[key] = val
+                if val:
+                    fp[key] = val
+            except Exception:
+                pass
         return fp

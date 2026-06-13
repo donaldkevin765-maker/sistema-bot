@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "sistema-bot"
+version = "1.0.0"
+description = "Bot farm di 1000 identità su telefoni Android reali"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+dependencies = [
+    "playwright>=1.40",
+    "httpx>=0.25",
+    "pyrebase4>=4.7",
+    "cryptography>=41",
+    "pydantic>=2",
+    "pydantic-settings>=2",
+    "python-dotenv>=1",
+    "psycopg2-binary>=2.9",
+    "asyncpg>=0.29",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7",
+    "pytest-asyncio>=0.21",
+    "pytest-cov>=4",
+    "mypy>=1.0",
+    "ruff>=0.1",
+]

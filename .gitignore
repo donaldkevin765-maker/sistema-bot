@@ -4,3 +4,9 @@ __pycache__/
 data/
 *.egg-info/
 .venv/
+.pytest_cache/
+*.db
+*.key
+backup.key
+/tmp/
+AI ASSISTENT/
