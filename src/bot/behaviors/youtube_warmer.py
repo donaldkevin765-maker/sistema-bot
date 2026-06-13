@@ -28,17 +28,34 @@ AD_SKIP_SELECTORS = [
     "button.ytp-ad-skip-button",
 ]
 
+SEARCH_TRIGGER_SELECTORS = [
+    "button[aria-label='Cerca']",
+    "button[aria-label='Search']",
+    "button[title='Cerca']",
+    "button[title='Search']",
+    "yt-icon-button[aria-label='Cerca']",
+]
+
 SEARCH_BOX_SELECTORS = [
     "input#search",
     "input[name='search_query']",
     "input[aria-label='Search']",
     "input[aria-label='Cerca']",
+    "#search-input input",
+    "#search yt-searchbox input",
+    "yt-searchbox input",
+    "div#search-input input",
 ]
 
 VIDEO_TITLE_SELECTORS = [
     "ytd-video-renderer #video-title",
     "ytd-video-renderer a#video-title",
     "a#video-title",
+    "#video-title",
+    "ytd-video-renderer",
+    "ytd-item-section-renderer a",
+    "a.media-item-extra-endpoint",
+    "a[class*='media-item']",
 ]
 
 COMMENT_SCROLL_SELECTORS = [
@@ -63,44 +80,49 @@ async def handle_cookie_consent(page: Page) -> bool:
 async def search_youtube(page: Page, keyword: str, seed: int = 0) -> None:
     rng = random.Random(seed) if seed else random
 
-    await page.goto("https://www.youtube.com", wait_until="domcontentloaded")
+    search_url = f"https://www.youtube.com/results?search_query={keyword.replace(' ', '+')}"
+    await page.goto(search_url, wait_until="domcontentloaded")
     await asyncio.sleep(rng.uniform(2.0, 4.5))
 
     await handle_cookie_consent(page)
-    await asyncio.sleep(rng.uniform(1.5, 3.0))
-
-    search_box = None
-    for selector in SEARCH_BOX_SELECTORS:
-        try:
-            search_box = page.locator(selector)
-            if await search_box.count() > 0:
-                break
-        except Exception:
-            continue
-
-    if not search_box:
-        return
-
-    await search_box.click()
-    await asyncio.sleep(rng.uniform(0.5, 1.2))
-
-    for char in keyword:
-        await page.keyboard.press(char)
-        await asyncio.sleep(rng.uniform(0.08, 0.22))
-
-    await asyncio.sleep(rng.uniform(0.6, 1.5))
-    await page.keyboard.press("Enter")
-    await page.wait_for_load_state("networkidle")
-    await asyncio.sleep(rng.uniform(2.0, 4.0))
+    await asyncio.sleep(rng.uniform(1.0, 2.0))
 
 
 async def click_video(page: Page, result_index: int = 0) -> bool:
+    for _ in range(3):
+        try:
+            await page.wait_for_selector("a[href*='/watch?v=']", timeout=8000)
+            break
+        except Exception:
+            await asyncio.sleep(2)
+    await asyncio.sleep(1.0)
+
+    videos = await page.evaluate(f'''() => {{
+        const links = Array.from(document.querySelectorAll('a[href*="/watch?v="]'));
+        const filtered = links.filter(a => a.offsetParent !== null);
+        return filtered.slice({result_index}, {result_index + 1}).map(a => ({{
+            href: a.href,
+            text: a.textContent.trim().slice(0,40),
+        }}));
+    }}''')
+    if videos:
+        try:
+            await page.goto(videos[0]['href'], wait_until='domcontentloaded')
+            return True
+        except Exception:
+            pass
+
     for selector in VIDEO_TITLE_SELECTORS:
         try:
-            videos = await page.locator(selector).all()
-            if videos:
-                idx = min(result_index, len(videos) - 1)
-                await videos[idx].click()
+            video_links = await page.locator(selector).all()
+            if video_links:
+                idx = min(result_index, len(video_links) - 1)
+                try:
+                    await video_links[idx].scroll_into_view_if_needed()
+                    await asyncio.sleep(0.5)
+                except Exception:
+                    pass
+                await video_links[idx].click()
                 await page.wait_for_load_state("domcontentloaded")
                 return True
         except Exception:

@@ -164,7 +164,10 @@ class SistemaBot:
 
             context = await self._browser.new_context(
                 user_agent=bot_data["user_agent"],
-                viewport=bot_data.get("screen_resolution", "412x915").split("x"),
+                viewport={
+                    "width": int(bot_data.get("screen_resolution", "412x915").split("x")[0]),
+                    "height": int(bot_data.get("screen_resolution", "412x915").split("x")[1]),
+                },
                 timezone_id=bot_data.get("timezone", "Europe/Rome"),
                 locale=bot_data.get("locale", "it-IT"),
                 is_mobile=True,

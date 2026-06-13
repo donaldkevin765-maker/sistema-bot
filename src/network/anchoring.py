@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import logging
 import os
 import platform
@@ -8,6 +9,19 @@ import subprocess
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+PHONE_INTERFACE_PATTERNS = [
+    "rndis", "usb", "enx", "wwan", "rmnet", "ccmni",
+    "pdp", "ue0", "ncm", "ecm", "iphone", "ipheth",
+    "enp0s20u",
+]
+
+HOTSPOT_SUBNETS = [
+    "172.20.10.0/24",
+    "172.16.0.0/12",
+    "192.168.43.0/24",
+    "192.168.137.0/24",
+]
 
 
 class NetworkAnchoring:
@@ -25,7 +39,10 @@ class NetworkAnchoring:
             interfaces = []
             current_iface = None
             for line in result.stdout.split("\n"):
-                if line and not line.startswith(" "):
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                if stripped == line and ":" in line and "flags=" in line:
                     current_iface = line.split(":")[0]
                 if "status: active" in line and current_iface:
                     if current_iface != "lo0":
@@ -66,6 +83,30 @@ class NetworkAnchoring:
         except Exception:
             return []
 
+    def _get_interface_ip(self, iface: str) -> Optional[str]:
+        try:
+            result = subprocess.run(
+                ["ifconfig", iface],
+                capture_output=True, text=True, timeout=5
+            )
+            for line in result.stdout.split("\n"):
+                parts = line.strip().split()
+                if "inet " in line and len(parts) > 1:
+                    return parts[1]
+        except Exception:
+            pass
+        return None
+
+    def _is_hotspot_ip(self, ip: str) -> bool:
+        try:
+            addr = ipaddress.ip_address(ip)
+            for subnet in HOTSPOT_SUBNETS:
+                if addr in ipaddress.ip_network(subnet, strict=False):
+                    return True
+        except ValueError:
+            pass
+        return False
+
     def detect_phone_interfaces(self) -> list[str]:
         system = platform.system().lower()
         if system == "darwin":
@@ -80,14 +121,15 @@ class NetworkAnchoring:
         phone_ifaces = []
         for iface in interfaces:
             iface_lower = iface.lower()
-            for pat in [
-                "rndis", "usb", "enx", "enp0s20u", "eth1", "wwan",
-                "rmnet", "ccmni", "pdp", "ue0", "android",
-                "ncm", "ecm", "eem", "iphone", "ipheth",
-            ]:
+            for pat in PHONE_INTERFACE_PATTERNS:
                 if pat in iface_lower:
                     phone_ifaces.append(iface)
                     break
+            else:
+                ip = self._get_interface_ip(iface)
+                if ip and self._is_hotspot_ip(ip):
+                    phone_ifaces.append(iface)
+                    logger.info(f"Interfaccia {iface} ({ip}) rilevata come hotspot/telefono")
 
         self._phone_interfaces = phone_ifaces
         if phone_ifaces:
@@ -131,17 +173,18 @@ class NetworkAnchoring:
             return False
 
         default_lower = default_iface.lower()
-        for pat in [
-            "rndis", "usb", "enx", "wwan", "rmnet", "ccmni",
-            "pdp", "ue0", "ncm", "ecm", "iphone", "ipheth",
-            "enp0s20u",
-        ]:
+        for pat in PHONE_INTERFACE_PATTERNS:
             if pat in default_lower:
-                logger.info(f"Ancoraggio OK: interfaccia {default_iface} è telefono")
+                logger.info(f"Ancoraggio OK: interfaccia {default_iface} è telefono (pattern match)")
                 return True
 
+        ip = self._get_interface_ip(default_iface)
+        if ip and self._is_hotspot_ip(ip):
+            logger.info(f"Ancoraggio OK: interfaccia {default_iface} ({ip}) è hotspot telefono")
+            return True
+
         logger.critical(
-            f"ANCORAGGIO RETE FALLITO! Interfaccia {default_iface} non è il telefono. "
+            f"ANCORAGGIO RETE FALLITO! Interfaccia {default_iface} ({ip or '?'}) non è il telefono. "
             "Connessione via WiFi/Fibra rilevata. PLAYWRIGHT BLOCCATO."
         )
         self._disconnect_count += 1
