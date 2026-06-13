@@ -1,7 +1,6 @@
-import type { InferGetServerSidePropsType, GetServerSideProps } from "next"
 import Head from "next/head"
 import { useEffect, useState } from "react"
-import { db, ref, onValue, off } from "../lib/firebase"
+import { initFirebase } from "../lib/firebase"
 
 type BotData = {
   bot_id: number
@@ -28,13 +27,7 @@ type Stats = {
   per_piattaforma: Record<string, number>
 }
 
-export const getServerSideProps: GetServerSideProps<{ firebaseConfigured: boolean }> = async () => {
-  return {
-    props: {
-      firebaseConfigured: !!process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
-    },
-  }
-}
+const isConfigured = typeof window !== "undefined" && !!process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL
 
 function BotCard({ bot }: { bot: BotData }) {
   const statoColor: Record<string, string> = {
@@ -84,7 +77,12 @@ function StatBox({ label, value, color }: { label: string; value: string | numbe
   )
 }
 
-export default function Home({ firebaseConfigured }: { firebaseConfigured: boolean }) {
+export default function Home() {
+  const [firebaseConfigured, setFirebaseConfigured] = useState(false)
+
+  useEffect(() => {
+    setFirebaseConfigured(!!process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL)
+  }, [])
   const [bots, setBots] = useState<BotData[]>([])
   const [activities, setActivities] = useState<ActivityData[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
@@ -93,15 +91,20 @@ export default function Home({ firebaseConfigured }: { firebaseConfigured: boole
   useEffect(() => {
     if (!firebaseConfigured) return
 
+    const f = initFirebase()
+    if (!f || !f.db) return
+
+    const { db, ref, onValue, off } = f
+
     const botsRef = ref(db, "bots")
-    const unsubBots = onValue(botsRef, (snap) => {
+    const unsubBots = onValue(botsRef, (snap: any) => {
       const data = snap.val()
       if (data) setBots(Object.values(data))
       setConnected(true)
     })
 
     const activityRef = ref(db, "attivita")
-    const unsubAct = onValue(activityRef, (snap) => {
+    const unsubAct = onValue(activityRef, (snap: any) => {
       const data = snap.val()
       if (data) {
         const list: ActivityData[] = Object.values(data)
