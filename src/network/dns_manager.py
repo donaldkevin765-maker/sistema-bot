@@ -57,6 +57,22 @@ class DNSManager:
             except Exception as e:
                 logger.error(f"Errore salvataggio DNS: {e}")
 
+    def _get_primary_interface(self) -> Optional[str]:
+        system = platform.system().lower()
+        if system == "darwin":
+            try:
+                result = subprocess.run(
+                    ["route", "-n", "get", "default"],
+                    capture_output=True, text=True, timeout=5
+                )
+                for line in result.stdout.split("\n"):
+                    if "interface:" in line:
+                        iface = line.split("interface:")[1].strip()
+                        return iface
+            except Exception:
+                pass
+        return "Wi-Fi"
+
     def apply_operator_dns(self) -> bool:
         if not self._current_operator:
             logger.error("Nessun operatore impostato.")
@@ -68,13 +84,13 @@ class DNSManager:
         system = platform.system().lower()
         if system == "darwin":
             try:
-                for dns in dns_servers:
-                    subprocess.run(
-                        ["networksetup", "-setdnsservers", "Wi-Fi"] + dns_servers,
-                        capture_output=True, text=True, timeout=10
-                    )
+                iface = self._get_primary_interface()
+                subprocess.run(
+                    ["networksetup", "-setdnsservers", iface] + dns_servers,
+                    capture_output=True, text=True, timeout=10
+                )
                 self._active = True
-                logger.info(f"DNS forzati a {self._current_operator}: {dns_servers}")
+                logger.info(f"DNS forzati a {self._current_operator} su {iface}: {dns_servers}")
                 return True
             except Exception as e:
                 logger.error(f"Errore impostazione DNS: {e}")
@@ -100,12 +116,13 @@ class DNSManager:
         system = platform.system().lower()
         if system == "darwin":
             try:
+                iface = self._get_primary_interface()
                 subprocess.run(
-                    ["networksetup", "-setdnsservers", "Wi-Fi"] + self._original_resolvers,
+                    ["networksetup", "-setdnsservers", iface] + self._original_resolvers,
                     capture_output=True, text=True, timeout=10
                 )
                 self._active = False
-                logger.info("DNS ripristinati ai valori originali.")
+                logger.info(f"DNS ripristinati ai valori originali su {iface}.")
                 return True
             except Exception:
                 return False

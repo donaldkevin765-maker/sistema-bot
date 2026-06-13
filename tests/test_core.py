@@ -125,7 +125,7 @@ class TestGeoIP:
         assert not self.g.is_vpn("78.210.15.68")
 
     def test_vpn_detection_known(self):
-        assert self.g.is_vpn("5.0.0.1")
+        assert self.g.is_vpn("198.58.0.1")
 
     def test_vpn_detection_google_dns(self):
         assert not self.g.is_vpn("8.8.8.8")

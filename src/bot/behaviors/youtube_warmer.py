@@ -170,7 +170,7 @@ async def watch_video(
             await asyncio.sleep(rng.uniform(3.0, 7.0))
             await page.evaluate(f"window.scrollBy(0, -{scroll_amount})")
 
-    asyncio.sleep(0.1)
+    await asyncio.sleep(0.1)
 
 
 async def scroll_to_comments(page: Page) -> None:

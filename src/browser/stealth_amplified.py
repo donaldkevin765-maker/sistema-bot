@@ -344,10 +344,10 @@ def build_full_stealth_script(canvas_seed: str, bot_id: int) -> str:
     // 12 - HARDWARE KEYBOARD + POINTER EVENTS
     // ===================================================================
     (function() {{
-        {{{{navigator.hardwareKeyboard !== undefined && Object.defineProperty(navigator, 'hardwareKeyboard', {{
+        {{navigator.hardwareKeyboard !== undefined && Object.defineProperty(navigator, 'hardwareKeyboard', {{
             get: () => ({{}}),
             configurable: true,
-        }})}}}}
+        }})}}
         if (window.PointerEvent) {{
             const origPointer = PointerEvent.prototype;
             Object.defineProperty(PointerEvent.prototype, 'pointerType', {{

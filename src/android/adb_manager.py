@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import subprocess
 from typing import Optional
 
@@ -126,6 +127,3 @@ class ADBManager:
             return {"raw": output, "type": sensor_type}
         except Exception as e:
             return {"error": str(e), "type": sensor_type}
-
-
-import os

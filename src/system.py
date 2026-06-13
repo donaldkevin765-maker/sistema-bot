@@ -22,13 +22,16 @@ from src.android.adb_manager import ADBManager
 from src.android.sms_interceptor import SMSInterceptor
 from src.android.sensor_spoofer import SensorSpoofer
 from src.android.carrot_multi_carrier import CarrotMultiCarrier
+from src.android.adb_reconnector import ADBReconnector
 from src.behavior.micro_distraction import MicroDistraction
 from src.behavior.accidental_clicks import AccidentalClicker
 from src.behavior.biological_schedule import BiologicalScheduler
 from src.behavior.wpm_reader import WPMReader
 from src.behavior.shadow_prewarm import ShadowPrewarmer
-from src.behavior.adaptive_speed import AdaptiveSpeed
+from src.behavior.adaptive_speed import AdaptiveSpeed, CrisisMode
 from src.behavior.path_dependence import PathDependence
+from src.behavior.warmup_scheduler import WarmupScheduler
+from src.behavior.telegram_notifier import TelegramNotifier
 from src.browser.font_spoofer import FontSpoofer
 from src.browser.viewport_variator import ViewportVariator
 from src.browser.touch_events import TouchEventForcer
@@ -36,9 +39,14 @@ from src.browser.audio_noise import AudioContextNoiseInjector
 from src.browser.resource_limiter import ResourceLimiter
 from src.browser.http_cache import HttpCacheManager
 from src.browser.stealth_amplified import build_full_stealth_script
+from src.driver.bot_driver import BotDriver
 from src.security.isolation import CrossContaminationGuard
 from src.security.shadowban_monitor import ShadowBanMonitor
 from src.security.cookie_encryption import CookieEncryption
+from src.orchestrator.brain import Brain
+from src.adapters.youtube import YouTubeAdapter
+from src.adapters.tiktok import TikTokAdapter
+from src.adapters.instagram import InstagramAdapter
 from src.bot.behaviors.youtube_warmer import youtube_warm
 from src.bot.behaviors.tiktok_warmer import tiktok_warm
 from src.bot.behaviors.instagram_warmer import instagram_warm
@@ -82,8 +90,21 @@ class SistemaBot:
             master_key=os.getenv("COOKIE_ENCRYPTION_KEY", "default-dev-key-change-in-production")
         )
 
+        self.adb_manager = ADBManager(
+            device_serial=os.getenv("ADB_DEVICE_SERIAL")
+        )
+        self.adb_reconnector = ADBReconnector(self.adb_manager, max_retries=30)
+        self.sms_interceptor = SMSInterceptor(self.adb_manager)
+        self.sensor_spoofer = SensorSpoofer()
+        self.telegram = TelegramNotifier() if os.getenv("TELEGRAM_BOT_TOKEN") else None
+        self.warmup_schedulers: dict[int, WarmupScheduler] = {}
+        self.crisis_modes: dict[int, CrisisMode] = {}
+        self.brains: dict[int, Brain] = {}
+        self.drivers: dict[int, BotDriver] = {}
+
         self._paused = False
         self._warmers: dict[int, ShadowPrewarmer] = {}
+        self._adb_phones_registered = False
 
     async def _on_thermal_pause(self, reading):
         self._paused = True
@@ -96,6 +117,23 @@ class SistemaBot:
     async def _on_thermal_resume(self, reading):
         self._paused = False
         logger.info(f"[SISTEMA] RIPRESA TERMICA a {reading.temperature}°C")
+
+    async def _register_adb_phones(self) -> None:
+        if self._adb_phones_registered:
+            return
+        try:
+            connected = await self.adb_manager.connect()
+            if connected:
+                self.carrier.register_phone(
+                    serial=self.adb_manager.device_serial or "default",
+                    carrier="Vodafone",
+                )
+                self._adb_phones_registered = True
+                logger.info(f"[ADB] Telefono registrato: {self.adb_manager.device_serial}")
+            else:
+                logger.warning("[ADB] Nessun telefono connesso")
+        except Exception as e:
+            logger.warning(f"[ADB] Registrazione telefono fallita: {e}")
 
     async def init_system(self):
         init_db()
@@ -120,6 +158,8 @@ class SistemaBot:
         )
         logger.info("[SISTEMA] Browser avviato.")
 
+        await self._register_adb_phones()
+
         carrier_stats = self.carrier.stats()
         if carrier_stats["carriers"]:
             logger.info(f"[SISTEMA] Multi-carrier attivo: {carrier_stats['carriers']}")
@@ -143,122 +183,143 @@ class SistemaBot:
         if not await self.resource_limiter.wait_and_acquire(timeout=60.0):
             return {"skipped": "resource_limit"}
 
-        speed = self.adaptive_speeds.get(bot_id, AdaptiveSpeed(bot_id))
-        self.adaptive_speeds[bot_id] = speed
+        speed = self.adaptive_speeds.setdefault(bot_id, AdaptiveSpeed(bot_id))
 
         if speed.should_skip_action():
             logger.warning(f"Bot {bot_id}: troppi errori recenti, skip azione.")
             self.resource_limiter.release()
             return {"skipped": "adaptive_speed_skip"}
 
-        pd = self.path_deps.get(bot_id, PathDependence(bot_id))
-        self.path_deps[bot_id] = pd
+        pd = self.path_deps.setdefault(bot_id, PathDependence(bot_id))
 
-        context = None
-        page = None
         result = {}
         start_time = datetime.utcnow()
+        driver = None
 
         try:
-            cache_args = self.cache_manager.get_browser_args(bot_id)
+            driver = BotDriver(bot_id, self._browser)
+            self.drivers[bot_id] = driver
 
-            context = await self._browser.new_context(
+            viewport = {
+                "width": int(bot_data.get("screen_resolution", "412x915").split("x")[0]),
+                "height": int(bot_data.get("screen_resolution", "412x915").split("x")[1]),
+            }
+
+            context = await driver.create_context(
                 user_agent=bot_data["user_agent"],
-                viewport={
-                    "width": int(bot_data.get("screen_resolution", "412x915").split("x")[0]),
-                    "height": int(bot_data.get("screen_resolution", "412x915").split("x")[1]),
-                },
-                timezone_id=bot_data.get("timezone", "Europe/Rome"),
+                viewport=viewport,
+                canvas_seed=str(bot_data.get("canvas_seed", bot_id)),
+                timezone=bot_data.get("timezone", "Europe/Rome"),
                 locale=bot_data.get("locale", "it-IT"),
-                is_mobile=True,
-                has_touch=True,
-                device_scale_factor=2,
             )
 
-            stealth = build_full_stealth_script(
-                str(bot_data.get("canvas_seed", bot_id)), bot_id
-            )
-            await context.add_init_script(stealth)
-
-            page = await context.new_page()
+            page = await driver.create_page()
             self._bots[bot_id] = {"context": context, "page": page, "started": start_time}
 
+            piattaforma = bot_data.get("piattaforma", "youtube")
+
             if bot_data.get("stato") == "WARMING":
-                warmer = self._warmers.get(bot_id)
-                if not warmer:
-                    warmer = ShadowPrewarmer(seed=bot_id)
-                    self._warmers[bot_id] = warmer
+                warmer = self._warmers.setdefault(bot_id, ShadowPrewarmer(seed=bot_id))
                 await warmer.prewarm_session(page)
                 aggiorna_bot(bot_id, stato="READY")
                 logger.info(f"Bot {bot_id}: pre-riscaldamento completato, stato -> READY")
 
-            distraction = MicroDistraction()
-            clicker = AccidentalClicker()
-
-            piattaforma = bot_data.get("piattaforma", "youtube")
-            warm_result = None
-
             if piattaforma == "youtube":
-                watch_time_min = max(45, int(os.getenv("WATCH_TIME_MIN", "120")))
-                watch_time_max = max(90, int(os.getenv("WATCH_TIME_MAX", "240")))
-                keyword = os.getenv("DEFAULT_KEYWORD", "music")
-
-                warm_result = await youtube_warm(
-                    page=page,
-                    keyword=keyword,
-                    seed=bot_id,
-                    watch_time_range=(watch_time_min, watch_time_max),
-                )
-                result["youtube"] = warm_result
-
+                adapter = YouTubeAdapter(page, bot_id)
             elif piattaforma == "tiktok":
-                watch_time_min = max(30, int(os.getenv("TIKTOK_WATCH_TIME_MIN", "60")))
-                watch_time_max = max(60, int(os.getenv("TIKTOK_WATCH_TIME_MAX", "180")))
-                hashtag = os.getenv("TIKTOK_DEFAULT_HASHTAG", "music")
-
-                warm_result = await tiktok_warm(
-                    page=page,
-                    hashtag=hashtag,
-                    seed=bot_id,
-                    watch_time_range=(watch_time_min, watch_time_max),
-                )
-                result["tiktok"] = warm_result
-
+                adapter = TikTokAdapter(page, bot_id)
             elif piattaforma == "instagram":
-                watch_time_min = max(20, int(os.getenv("INSTAGRAM_WATCH_TIME_MIN", "30")))
-                watch_time_max = max(40, int(os.getenv("INSTAGRAM_WATCH_TIME_MAX", "90")))
-                hashtag = os.getenv("INSTAGRAM_DEFAULT_HASHTAG", "music")
+                adapter = InstagramAdapter(page, bot_id)
+            else:
+                result["error"] = f"Piattaforma sconosciuta: {piattaforma}"
+                result["status"] = "error"
+                return result
 
-                warm_result = await instagram_warm(
-                    page=page,
-                    hashtag=hashtag,
-                    seed=bot_id,
-                    watch_time_range=(watch_time_min, watch_time_max),
+            logged_in = await adapter.is_logged_in()
+            if not logged_in and bot_data.get("password"):
+                logger.info(f"Bot {bot_id}: tentativo login {piattaforma}")
+                login_ok = await adapter.login(
+                    bot_data.get("username", ""),
+                    bot_data.get("password", ""),
                 )
-                result["instagram"] = warm_result
+                if login_ok:
+                    await driver.persist_state()
+                    logged_in = True
+                    aggiorna_bot(bot_id, login_count=get_bot(bot_id).get("login_count", 0) + 1)
+                    logger.info(f"Bot {bot_id}: login riuscito")
+                else:
+                    logger.warning(f"Bot {bot_id}: login fallito, procedo con warm anonimo")
 
-            if warm_result:
-                registra_attivita(
-                    bot_id=bot_id,
-                    tipo_azione=f"{piattaforma}_warm",
-                    descrizione=f"Warm: {warm_result.get(warm_result.get('hashtag', 'music'), warm_result.get('keyword', 'music'))}",
-                    ip_utilizzato=bot_data.get("ip_address"),
-                    user_agent=bot_data.get("user_agent"),
-                    canvas_seed=bot_data.get("canvas_seed"),
-                    success=warm_result.get("status") == "ok",
-                    durata_ms=int(
-                        (datetime.utcnow() - start_time).total_seconds() * 1000
-                    ),
-                )
+            if logged_in and bot_id in self.brains:
+                brain = self.brains[bot_id]
+                brain_res = await brain.think_and_act()
+                result.update(brain_res)
+            else:
+                distraction = MicroDistraction()
+                clicker = AccidentalClicker()
+                warm_result = None
 
-            await distraction.maybe_distract(page, seed=bot_id + 100)
-            await clicker.maybe_accidental_click(page, seed=bot_id + 200)
-            await clicker.accidental_scroll(page, seed=bot_id + 300)
+                if piattaforma == "youtube":
+                    watch_time_min = max(45, int(os.getenv("WATCH_TIME_MIN", "120")))
+                    watch_time_max = max(90, int(os.getenv("WATCH_TIME_MAX", "240")))
+                    keyword = os.getenv("DEFAULT_KEYWORD", "music")
+                    warm_result = await youtube_warm(
+                        page=page, keyword=keyword, seed=bot_id,
+                        watch_time_range=(watch_time_min, watch_time_max),
+                    )
+                    result["youtube"] = warm_result
 
+                elif piattaforma == "tiktok":
+                    watch_time_min = max(30, int(os.getenv("TIKTOK_WATCH_TIME_MIN", "60")))
+                    watch_time_max = max(60, int(os.getenv("TIKTOK_WATCH_TIME_MAX", "180")))
+                    hashtag = os.getenv("TIKTOK_DEFAULT_HASHTAG", "music")
+                    warm_result = await tiktok_warm(
+                        page=page, hashtag=hashtag, seed=bot_id,
+                        watch_time_range=(watch_time_min, watch_time_max),
+                    )
+                    result["tiktok"] = warm_result
+
+                elif piattaforma == "instagram":
+                    watch_time_min = max(20, int(os.getenv("INSTAGRAM_WATCH_TIME_MIN", "30")))
+                    watch_time_max = max(40, int(os.getenv("INSTAGRAM_WATCH_TIME_MAX", "90")))
+                    hashtag = os.getenv("INSTAGRAM_DEFAULT_HASHTAG", "music")
+                    warm_result = await instagram_warm(
+                        page=page, hashtag=hashtag, seed=bot_id,
+                        watch_time_range=(watch_time_min, watch_time_max),
+                    )
+                    result["instagram"] = warm_result
+
+                if warm_result:
+                    registra_attivita(
+                        bot_id=bot_id,
+                        tipo_azione=f"{piattaforma}_warm",
+                        descrizione=f"Warm: {warm_result.get('hashtag') or warm_result.get('keyword') or 'music'}",
+                        ip_utilizzato=bot_data.get("ip_address"),
+                        user_agent=bot_data.get("user_agent"),
+                        canvas_seed=bot_data.get("canvas_seed"),
+                        success=warm_result.get("status") == "ok",
+                        durata_ms=int((datetime.utcnow() - start_time).total_seconds() * 1000),
+                    )
+
+                blocked = await adapter.detect_block()
+                if blocked:
+                    logger.warning(f"Bot {bot_id}: blocco {blocked}")
+                    speed.record_error()
+                    if "captcha" in str(blocked).lower():
+                        speed.record_captcha()
+                    if self.telegram:
+                        await self.telegram.notify_captcha(bot_id, page)
+
+                await distraction.maybe_distract(page, seed=bot_id + 100)
+                await clicker.maybe_accidental_click(page, seed=bot_id + 200)
+                await clicker.accidental_scroll(page, seed=bot_id + 300)
+
+            await driver.persist_state()
             result["bot_id"] = bot_id
             result["status"] = "ok"
             result["duration"] = (datetime.utcnow() - start_time).total_seconds()
             result["paused_for_thermal"] = self._paused
+            result["logged_in"] = logged_in
 
             speed.record_success()
 
@@ -278,12 +339,10 @@ class SistemaBot:
 
         finally:
             self.resource_limiter.release()
-            if context:
-                try:
-                    await context.close()
-                except Exception:
-                    pass
+            if driver:
+                await driver.close()
             self._bots.pop(bot_id, None)
+            self.drivers.pop(bot_id, None)
 
         return result
 
@@ -310,7 +369,24 @@ class SistemaBot:
                 self.adaptive_speeds[bid] = AdaptiveSpeed(bot_id=bid)
             if bid not in self.path_deps:
                 self.path_deps[bid] = PathDependence(bot_id=bid)
-            self.carrier.assign_bot(bid)
+            if bid not in self.warmup_schedulers:
+                self.warmup_schedulers[bid] = WarmupScheduler(bot_id=bid)
+            if bid not in self.crisis_modes:
+                self.crisis_modes[bid] = CrisisMode(self.telegram)
+            carrier_assign = self.carrier.assign_bot(bid)
+            carrier_name = getattr(carrier_assign, "carrier", None) if carrier_assign else None
+
+            if bid not in self.brains and bot.get("password"):
+                warmup = self.warmup_schedulers[bid]
+                plat = bot.get("piattaforma", "youtube")
+                self.brains[bid] = Brain(
+                    bot_id=bid, page=None, platform=plat,
+                    warmup=warmup, telegram=self.telegram,
+                    adaptive_speed=self.adaptive_speeds[bid],
+                    path_dep=self.path_deps[bid],
+                    crisis=self.crisis_modes[bid],
+                    carrier=carrier_name,
+                )
 
         semaphore = asyncio.Semaphore(self.resource_limiter.max_parallel)
         tasks = []
