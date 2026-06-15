@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
-"""Dashboard web locale — apri http://localhost:8501"""
+"""Dashboard web locale — apri http://localhost:8501
+Zero dipendenze esterne: usa solo la libreria standard Python."""
+
+import http.server
 import json
-import os
+import re
 import sys
+import urllib.parse
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-import uvicorn
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
-
 from database import init_db, lista_bot, get_statistiche, get_attivita, get_errori
 
 init_db()
-app = FastAPI(title="Sistema Bot Dashboard")
 
 HTML = """<!DOCTYPE html>
 <html lang="it">
@@ -55,10 +54,9 @@ tr:hover{background:#334155}
 <nav>
 <button class="active" onclick="show('stats')">Statistiche</button>
 <button onclick="show('bots')">Bot</button>
-<button onclick="show('log')">Attività</button>
+<button onclick="show('log')">Attivit\u00e0</button>
 <button onclick="show('errors')">Errori</button>
 </nav>
-
 <div id="stats" class="panel active"><div class="grid" id="stat-grid"></div></div>
 <div id="bots" class="panel">
 <div class="filtri">
@@ -86,55 +84,80 @@ tr:hover{background:#334155}
 <div class="filtri"><input type="number" id="bot-id" value="1" min="1" style="padding:6px 12px;border-radius:6px;background:#1e293b;color:#e2e8f0;border:1px solid #334155;width:100px">
 <button onclick="caricaLog()" style="padding:6px 16px;border-radius:6px;background:#38bdf8;color:#0f172a;border:none;cursor:pointer">Vedi</button></div>
 <div class="card" style="overflow-x:auto"><table><thead><tr>
-<th>ID</th><th>Tipo</th><th>Descrizione</th><th>Successo</th><th>Durata</th><th>Timestamp</th>
+<th>ID</th><th>Tipo</th><th>Descrizione</th><th>Esito</th><th>Durata</th><th>Timestamp</th>
 </tr></thead><tbody id="log-table"></tbody></table></div>
 </div>
 <div id="errors" class="panel"><div class="card" style="overflow-x:auto"><table><thead><tr>
 <th>ID</th><th>Bot</th><th>Piattaforma</th><th>Errore</th><th>Timestamp</th>
 </tr></thead><tbody id="err-table"></tbody></table></div></div>
-
 <script>
-function show(id){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));event.target.classList.add('active')}
-async function caricaStats(){const r=await fetch('/api/stats');const d=await r.json();document.getElementById('stat-grid').innerHTML=
-'<div class="stat card"><div class="val">'+d.totale_bot+'</div><div class="lab">Totale Bot</div></div>'+
-'<div class="stat card"><div class="val">'+d.attivita_oggi+'</div><div class="lab">Attività Oggi</div></div>'+
-'<div class="stat card"><div class="val">'+Object.values(d.per_stato).reduce((a,b)=>a+b,0)+'</div><div class="lab">Bot con stato</div></div>'+
-Object.entries(d.per_piattaforma).map(([k,v])=>'<div class="stat card"><div class="val">'+v+'</div><div class="lab">'+k+'</div></div>').join('')}
-async function caricaBot(){const r=await fetch('/api/bots?stato='+document.getElementById('filtro-stato').value+'&piattaforma='+document.getElementById('filtro-piattaforma').value);const d=await r.json();document.getElementById('bot-table').innerHTML=d.map(b=>'<tr><td>'+b.bot_id+'</td><td>'+b.username+'</td><td>'+(b.piattaforma||'-')+'</td><td><span class="status '+b.stato+'">'+b.stato+'</span></td><td>'+(b.ip_address||'-')+'</td><td>'+(b.ultimo_heartbeat||'-')+'</td><td>'+b.error_count+'</td></tr>').join('')}
-async function caricaLog(){const r=await fetch('/api/attivita/'+document.getElementById('bot-id').value);const d=await r.json();document.getElementById('log-table').innerHTML=d.map(a=>'<tr><td>'+a.azione_id+'</td><td>'+a.tipo_azione+'</td><td>'+(a.descrizione||'-')+'</td><td>'+(a.success?'✅':'❌')+'</td><td>'+(a.durata_ms?a.durata_ms+'ms':'-')+'</td><td>'+a.timestamp+'</td></tr>').join('')}
-async function caricaErrori(){const r=await fetch('/api/errori');const d=await r.json();document.getElementById('err-table').innerHTML=d.map(e=>'<tr><td>'+e.azione_id+'</td><td>'+(e.username||'-')+'</td><td>'+(e.piattaforma||'-')+'</td><td>'+(e.error_message||'-')+'</td><td>'+e.timestamp+'</td></tr>').join('')}
-caricaStats();caricaBot();caricaLog();caricaErrori();
-setInterval(()=>{caricaStats();caricaBot();caricaErrori()},5000)
+function show(i){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.getElementById(i).classList.add('active');document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));event.target.classList.add('active')}
+async function g(u){let r=await fetch(u);return r.json()}
+async function caricaStats(){let d=await g('/api/stats');let h='<div class="stat card"><div class="val">'+d.totale_bot+'</div><div class="lab">Totale Bot</div></div><div class="stat card"><div class="val">'+d.attivita_oggi+'</div><div class="lab">Attivit\u00e0 Oggi</div></div>';for(let[k,v]of Object.entries(d.per_piattaforma))h+='<div class="stat card"><div class="val">'+v+'</div><div class="lab">'+k+'</div></div>';document.getElementById('stat-grid').innerHTML=h}
+async function caricaBot(){let s=document.getElementById('filtro-stato').value,p=document.getElementById('filtro-piattaforma').value;let d=await g('/api/bots?stato='+s+'&piattaforma='+p);document.getElementById('bot-table').innerHTML=d.map(b=>'<tr><td>'+b.bot_id+'</td><td>'+b.username+'</td><td>'+(b.piattaforma||'-')+'</td><td><span class="status '+b.stato+'">'+b.stato+'</span></td><td>'+(b.ip_address||'-')+'</td><td>'+(b.ultimo_heartbeat||'-')+'</td><td>'+b.error_count+'</td></tr>').join('')}
+async function caricaLog(){let d=await g('/api/attivita/'+document.getElementById('bot-id').value);document.getElementById('log-table').innerHTML=d.map(a=>'<tr><td>'+a.azione_id+'</td><td>'+a.tipo_azione+'</td><td>'+(a.descrizione||'-')+'</td><td>'+(a.success?'OK':'ERR')+'</td><td>'+(a.durata_ms?a.durata_ms+'ms':'-')+'</td><td>'+a.timestamp+'</td></tr>').join('')}
+async function caricaErrori(){let d=await g('/api/errori');document.getElementById('err-table').innerHTML=d.map(e=>'<tr><td>'+e.azione_id+'</td><td>'+(e.username||'-')+'</td><td>'+(e.piattaforma||'-')+'</td><td>'+(e.error_message||'-')+'</td><td>'+e.timestamp+'</td></tr>').join('')}
+caricaStats();caricaBot();caricaLog();caricaErrori();setInterval(()=>{caricaStats();caricaBot();caricaErrori()},5000)
 </script>
 </body>
 </html>"""
 
 
-@app.get("/")
-def index():
-    return HTMLResponse(HTML)
+class Handler(http.server.BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass
 
+    def _json(self, data, status=200):
+        body = json.dumps(data, default=str).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
-@app.get("/api/stats")
-def api_stats():
-    return get_statistiche()
+    def _html(self, content, status=200):
+        body = content.encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
+    def do_GET(self):
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path.rstrip("/")
+        params = urllib.parse.parse_qs(parsed.query)
 
-@app.get("/api/bots")
-def api_bots(stato: str = "", piattaforma: str = ""):
-    return lista_bot(stato=stato if stato else None, piattaforma=piattaforma if piattaforma else None)
+        if path == "" or path == "/":
+            return self._html(HTML)
 
+        if path == "/api/stats":
+            return self._json(get_statistiche())
 
-@app.get("/api/attivita/{bot_id}")
-def api_attivita(bot_id: int):
-    return get_attivita(bot_id)
+        if path == "/api/bots":
+            stato = params.get("stato", [None])[0] or None
+            piattaforma = params.get("piattaforma", [None])[0] or None
+            return self._json(lista_bot(stato=stato, piattaforma=piattaforma))
 
+        if path.startswith("/api/attivita/"):
+            try:
+                bot_id = int(path.split("/")[-1])
+                return self._json(get_attivita(bot_id))
+            except (ValueError, IndexError):
+                return self._json({"error": "invalid bot_id"}, 400)
 
-@app.get("/api/errori")
-def api_errori():
-    return get_errori()
+        if path == "/api/errori":
+            return self._json(get_errori())
+
+        return self._json({"error": "not found"}, 404)
 
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8501
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    server = http.server.HTTPServer(("0.0.0.0", port), Handler)
+    print(f"Dashboard su http://localhost:{port}")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        server.shutdown()
