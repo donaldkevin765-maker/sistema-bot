@@ -11,3 +11,6 @@ backup.key
 /tmp/
 AI ASSISTENT/
 .vercel
+node_modules/
+package.json
+package-lock.json
