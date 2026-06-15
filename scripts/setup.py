@@ -127,7 +127,7 @@ def test_imports():
     failed = []
     modules = [
         "database", "src.hardware.watchdog", "src.network.ip_verifier",
-        "src.network.anchoring", "src.network.firebase_protocol",
+        "src.network.anchoring",
         "src.android.adb_manager", "src.behavior.social_fsm",
         "src.behavior.warmup_scheduler", "src.driver.bot_driver",
         "src.driver.mouse_bezier", "src.browser.stealth_amplified",

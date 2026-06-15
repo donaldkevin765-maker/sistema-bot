@@ -5,7 +5,6 @@ import threading
 from datetime import datetime
 from typing import Optional, Any
 
-from src.network.firebase_sync import sync_bot, sync_delete_bot, sync_attivita, sync_stats
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "bot_fleet.db")
 
@@ -107,9 +106,6 @@ def inserisci_bot(
     )
     conn.commit()
     bid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    bot = get_bot(bid)
-    if bot:
-        sync_bot(bot)
     return bid
 
 
@@ -119,9 +115,6 @@ def aggiorna_bot(bot_id: int, **kwargs) -> bool:
     vals = list(kwargs.values()) + [bot_id]
     conn.execute(f"UPDATE profili_bot SET {sets} WHERE bot_id = ?", vals)
     conn.commit()
-    bot = get_bot(bot_id)
-    if bot:
-        sync_bot(bot)
     return conn.total_changes > 0
 
 
@@ -160,7 +153,6 @@ def elimina_bot(bot_id: int) -> bool:
     conn.execute("DELETE FROM registri_attivita WHERE bot_id = ?", (bot_id,))
     conn.execute("DELETE FROM profili_bot WHERE bot_id = ?", (bot_id,))
     conn.commit()
-    sync_delete_bot(bot_id)
     return True
 
 
@@ -192,16 +184,6 @@ def registra_attivita(
     )
     conn.commit()
     aid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    sync_attivita({
-        "azione_id": aid,
-        "bot_id": bot_id,
-        "tipo_azione": tipo_azione,
-        "descrizione": descrizione,
-        "success": 1 if success else 0,
-        "error_message": error_message,
-        "durata_ms": durata_ms,
-        "timestamp": now,
-    })
     return aid
 
 
@@ -243,11 +225,9 @@ def get_statistiche() -> dict:
     attivita_oggi = conn.execute(
         "SELECT COUNT(*) FROM registri_attivita WHERE date(timestamp) = date('now')"
     ).fetchone()[0]
-    stats = {
+    return {
         "totale_bot": totali,
         "per_stato": per_stato,
         "per_piattaforma": per_piattaforma,
         "attivita_oggi": attivita_oggi,
     }
-    sync_stats(stats)
-    return stats
