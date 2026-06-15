@@ -1,27 +1,33 @@
-import subprocess
+#!/usr/bin/env python3
+"""Sistema Bot Dashboard — avvia con: python3 dashboard.py"""
+import os
 import sys
 from pathlib import Path
 
+if __name__ == "__main__":
+    os.environ.setdefault("STREAMLIT_CONSOLE_EMAIL", "")
+    os.environ.setdefault("STREAMLIT_BROWSER_GATHER_USAGE_STATS", "false")
+    os.execvp(sys.executable, [
+        sys.executable, "-m", "streamlit", "run", __file__,
+        "--server.port", "8501",
+        "--server.headless", "true",
+    ])
+
 import streamlit as st
-import sys
 
 sys.path.insert(0, str(Path(__file__).parent))
 
 from database import (
-    init_db, lista_bot, get_bot, get_statistiche, get_attivita,
-    get_errori, inserisci_bot, elimina_bot,
+    init_db, lista_bot, get_statistiche, get_attivita, get_errori,
 )
 
 st.set_page_config(page_title="Sistema Bot Dashboard", layout="wide")
-
 init_db()
 
 st.title("Sistema Bot Dashboard")
 st.caption("Monitoraggio locale flotta bot")
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "Statistiche", "Bot", "Attività", "Errori", "Avvia Flotta"
-])
+tab1, tab2, tab3, tab4 = st.tabs(["Statistiche", "Bot", "Attività", "Errori"])
 
 with tab1:
     stats = get_statistiche()
@@ -42,14 +48,7 @@ with tab2:
 
 with tab3:
     bot_id = st.number_input("Bot ID", min_value=1, value=1)
-    attivita = get_attivita(bot_id)
-    st.dataframe(attivita, width="stretch")
+    st.dataframe(get_attivita(bot_id), width="stretch")
 
 with tab4:
-    errori = get_errori(limit=50)
-    st.dataframe(errori, width="stretch")
-
-with tab5:
-    piattaforma = st.selectbox("Piattaforma", ["youtube", "instagram", "tiktok", "facebook", "x"])
-    if st.button("Avvia Flotta"):
-        st.info(f"Lancia: python3 agents/main.py {piattaforma}")
+    st.dataframe(get_errori(limit=50), width="stretch")
