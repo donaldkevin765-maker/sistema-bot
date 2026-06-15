@@ -5,6 +5,7 @@ import logging
 import os
 import random
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 from playwright.async_api import async_playwright
@@ -26,7 +27,6 @@ from src.android.adb_reconnector import ADBReconnector
 from src.behavior.micro_distraction import MicroDistraction
 from src.behavior.accidental_clicks import AccidentalClicker
 from src.behavior.biological_schedule import BiologicalScheduler
-from src.behavior.wpm_reader import WPMReader
 from src.behavior.shadow_prewarm import ShadowPrewarmer
 from src.behavior.adaptive_speed import AdaptiveSpeed, CrisisMode
 from src.behavior.path_dependence import PathDependence
@@ -50,6 +50,8 @@ from src.adapters.instagram import InstagramAdapter
 from src.bot.behaviors.youtube_warmer import youtube_warm
 from src.bot.behaviors.tiktok_warmer import tiktok_warm
 from src.bot.behaviors.instagram_warmer import instagram_warm
+from src.hardware.disk_watchdog import DiskWatchdog
+from src.wiki_hook import wiki_hook
 
 logger = logging.getLogger(__name__)
 
@@ -95,12 +97,17 @@ class SistemaBot:
         )
         self.adb_reconnector = ADBReconnector(self.adb_manager, max_retries=30)
         self.sms_interceptor = SMSInterceptor(self.adb_manager)
-        self.sensor_spoofer = SensorSpoofer()
+        self.sensor_spoofer = SensorSpoofer(self.adb_manager)
         self.telegram = TelegramNotifier() if os.getenv("TELEGRAM_BOT_TOKEN") else None
         self.warmup_schedulers: dict[int, WarmupScheduler] = {}
         self.crisis_modes: dict[int, CrisisMode] = {}
         self.brains: dict[int, Brain] = {}
         self.drivers: dict[int, BotDriver] = {}
+
+        self.disk_watchdog = DiskWatchdog(
+            data_dir=Path(os.getenv("DATA_DIR", "data")),
+            telegram=self.telegram,
+        )
 
         self._paused = False
         self._warmers: dict[int, ShadowPrewarmer] = {}
@@ -166,6 +173,12 @@ class SistemaBot:
         else:
             logger.info("[SISTEMA] Nessun carrier registrato (single-phone mode)")
 
+        wiki_hook.source_project()
+        wiki_hook.log_event(0, "system_init", "Sistema inizializzato", {
+            "max_parallel": self.resource_limiter.max_parallel,
+            "carriers": carrier_stats["carriers"],
+        })
+
     async def run_bot(self, bot_id: int) -> dict:
         bot_data = get_bot(bot_id)
         if not bot_data:
@@ -180,8 +193,9 @@ class SistemaBot:
             logger.info(f"Bot {bot_id}: sistema in pausa termica. Salto.")
             return {"skipped": "thermal_pause"}
 
-        if not await self.resource_limiter.wait_and_acquire(timeout=60.0):
-            return {"skipped": "resource_limit"}
+            if not await self.resource_limiter.wait_and_acquire(timeout=60.0):
+                wiki_hook.log_event(bot_id, "resource_limit", "Limite risorse raggiunto")
+                return {"skipped": "resource_limit"}
 
         speed = self.adaptive_speeds.setdefault(bot_id, AdaptiveSpeed(bot_id))
 
@@ -247,8 +261,10 @@ class SistemaBot:
                     logged_in = True
                     aggiorna_bot(bot_id, login_count=get_bot(bot_id).get("login_count", 0) + 1)
                     logger.info(f"Bot {bot_id}: login riuscito")
+                    wiki_hook.log_event(bot_id, "login_ok", f"Login {piattaforma} riuscito")
                 else:
                     logger.warning(f"Bot {bot_id}: login fallito, procedo con warm anonimo")
+                    wiki_hook.log_event(bot_id, "login_fail", f"Login {piattaforma} fallito")
 
             if logged_in and bot_id in self.brains:
                 brain = self.brains[bot_id]
@@ -309,6 +325,7 @@ class SistemaBot:
                         speed.record_captcha()
                     if self.telegram:
                         await self.telegram.notify_captcha(bot_id, page)
+                    wiki_hook.log_event(bot_id, "block", f"Blocco rilevato: {blocked}")
 
                 await distraction.maybe_distract(page, seed=bot_id + 100)
                 await clicker.maybe_accidental_click(page, seed=bot_id + 200)
@@ -349,6 +366,8 @@ class SistemaBot:
     async def start_fleet(self, piattaforma: Optional[str] = None):
         self._running = True
         await self.watchdog.start()
+        await self.disk_watchdog.start()
+        wiki_hook.log_event(0, "fleet_start", f"Flotta avviata su {piattaforma or 'tutte'}")
 
         bots = lista_bot(piattaforma=piattaforma, stato="READY")
         if not bots:
@@ -408,6 +427,9 @@ class SistemaBot:
     async def stop_fleet(self):
         self._running = False
         await self.watchdog.stop()
+        await self.disk_watchdog.stop()
+        wiki_hook.log_event(0, "fleet_stop", "Flotta arrestata")
+        wiki_hook.save_session_report()
         for bot_id in list(self._bots.keys()):
             try:
                 await self._bots[bot_id]["context"].close()

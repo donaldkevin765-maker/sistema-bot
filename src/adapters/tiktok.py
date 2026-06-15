@@ -15,26 +15,58 @@ class TikTokAdapter(PlatformAdapter):
         try:
             await self.page.goto("https://www.tiktok.com/login", wait_until="domcontentloaded")
             await asyncio.sleep(random.uniform(2.0, 4.0))
-            login_options = self.page.locator(
-                '[class*="login-option"], [class*="login-button"], button:has-text("Use phone / email")'
-            )
-            if await login_options.count() > 0:
-                await login_options.first.click()
-                await asyncio.sleep(random.uniform(1.0, 2.5))
-            email_input = self.page.locator('input[name="username"], input[type="text"][placeholder*="email"]')
+
+            use_phone_email = self.page.locator(
+                '[class*="login-option"], [class*="login-button"], '
+                'button:has-text("Use phone / email"), div:has-text("Use phone / email"), '
+                'a:has-text("Accedi con email"), span:has-text("Email")'
+            ).first
+            if await use_phone_email.is_visible(timeout=5000):
+                await use_phone_email.click()
+                await asyncio.sleep(random.uniform(1.5, 3.0))
+
+            email_input = self.page.locator(
+                'input[name="username"], input[type="text"][placeholder*="email"], '
+                'input[placeholder*="Email"], input[name="email"]'
+            ).first
             if await email_input.is_visible(timeout=5000):
                 await email_input.click()
+                await asyncio.sleep(random.uniform(0.3, 0.8))
                 for char in username:
                     await self.page.keyboard.press(char)
                     await asyncio.sleep(random.uniform(0.05, 0.12))
-                await self.page.keyboard.press("Tab")
+                await asyncio.sleep(random.uniform(0.3, 0.8))
+
+            password_input = self.page.locator(
+                'input[type="password"], input[name="password"]'
+            ).first
+            if await password_input.is_visible(timeout=5000):
+                await password_input.click()
                 await asyncio.sleep(random.uniform(0.3, 0.8))
                 for char in password:
                     await self.page.keyboard.press(char)
                     await asyncio.sleep(random.uniform(0.05, 0.12))
+                await asyncio.sleep(random.uniform(0.5, 1.0))
+
+            login_btn = self.page.locator(
+                'button[type="submit"], button:has-text("Log in"), '
+                'button:has-text("Accedi"), div[role="button"]:has-text("Log in")'
+            ).first
+            if await login_btn.is_visible(timeout=3000):
+                await login_btn.click()
+            else:
                 await self.page.keyboard.press("Enter")
-                await asyncio.sleep(random.uniform(3.0, 6.0))
-            return True
+            await asyncio.sleep(random.uniform(3.0, 6.0))
+
+            captcha = self.page.locator(
+                "#captcha-verify, [class*='captcha'], [class*='arkose'], "
+                "iframe[title*='captcha']"
+            ).first
+            if await captcha.is_visible(timeout=3000):
+                logger.warning(f"TikTok login: captcha/slide verify rilevata per bot {self.bot_id}")
+                return False
+
+            return await self.is_logged_in()
         except Exception as e:
             logger.error(f"TikTok login fallito: {e}")
             return False
@@ -118,6 +150,8 @@ class TikTokAdapter(PlatformAdapter):
             return "captcha"
         if "unusual" in page_text.lower() and "activity" in page_text.lower():
             return "rate_limited"
+        if "verify" in page_text.lower() and "device" in page_text.lower():
+            return "device_verify"
         return None
 
     async def is_logged_in(self) -> bool:

@@ -13,6 +13,7 @@ from src.network.firebase_protocol import FirebaseCommandProtocol
 from src.network.ip_verifier import IPVerifier
 from src.network.anchoring import NetworkAnchoring
 from src.system import SistemaBot
+from src.wiki_hook import wiki_hook
 
 logging.basicConfig(
     level=logging.INFO,
@@ -114,6 +115,7 @@ class LocalAgent:
 
         logger.info(f"Agente locale {self._agent_id} in ascolto su Firebase...")
 
+        wiki_hook.log_event(0, "agent_start", f"Agente {self._agent_id} avviato")
         self.protocol.stream_listen(on_command=self._on_command)
 
         loop = asyncio.get_running_loop()

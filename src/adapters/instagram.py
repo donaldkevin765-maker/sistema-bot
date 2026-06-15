@@ -33,17 +33,28 @@ class InstagramAdapter(PlatformAdapter):
             for char in username:
                 await self.page.keyboard.press(char)
                 await asyncio.sleep(random.uniform(0.05, 0.12))
-            await self.page.keyboard.press("Tab")
+
+            password_input = self.page.locator('input[name="password"]')
+            await password_input.click()
             await asyncio.sleep(random.uniform(0.3, 0.8))
             for char in password:
                 await self.page.keyboard.press(char)
                 await asyncio.sleep(random.uniform(0.05, 0.12))
-            await self.page.keyboard.press("Enter")
+            await asyncio.sleep(random.uniform(0.3, 0.8))
+
+            login_btn = self.page.locator(
+                'button[type="submit"], button:has-text("Log In"), button:has-text("Accedi")'
+            ).first
+            if await login_btn.is_visible(timeout=3000):
+                await login_btn.click()
+            else:
+                await self.page.keyboard.press("Enter")
             await asyncio.sleep(random.uniform(4.0, 8.0))
 
             try:
                 not_now = self.page.locator(
-                    "button:has-text('Non ora'), button:has-text('Not Now'), button:has-text('Salta')"
+                    "button:has-text('Non ora'), button:has-text('Not Now'), "
+                    "button:has-text('Salta'), button:has-text('Skip')"
                 ).first
                 if await not_now.is_visible(timeout=5000):
                     await not_now.click()
@@ -51,7 +62,15 @@ class InstagramAdapter(PlatformAdapter):
             except Exception:
                 pass
 
-            return True
+            suspicious = self.page.locator(
+                "text=We detected an unusual login attempt, text=Verify it's you, "
+                "text=Conferma che sei tu, text=Inserisci il codice"
+            ).first
+            if await suspicious.is_visible(timeout=3000):
+                logger.warning(f"Instagram login: verifica sospetta per bot {self.bot_id}")
+                return False
+
+            return await self.is_logged_in()
         except Exception as e:
             logger.error(f"Instagram login fallito: {e}")
             return False
@@ -147,4 +166,6 @@ class InstagramAdapter(PlatformAdapter):
             return "blocked"
         if "We detected an unusual login attempt" in page_text:
             return "login_attempt"
+        if "verify" in page_text.lower() and ("identity" in page_text.lower() or "it's you" in page_text.lower()):
+            return "identity_verify"
         return None

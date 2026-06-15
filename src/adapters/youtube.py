@@ -15,6 +15,7 @@ class YouTubeAdapter(PlatformAdapter):
         try:
             await self.page.goto("https://accounts.google.com/signin", wait_until="domcontentloaded")
             await asyncio.sleep(random.uniform(2.0, 4.0))
+
             email_input = self.page.locator("input[type='email']")
             await email_input.wait_for(timeout=10000)
             await email_input.click()
@@ -24,6 +25,25 @@ class YouTubeAdapter(PlatformAdapter):
                 await asyncio.sleep(random.uniform(0.05, 0.15))
             await self.page.keyboard.press("Enter")
             await asyncio.sleep(random.uniform(2.0, 5.0))
+
+            password_input = self.page.locator("input[type='password']")
+            try:
+                await password_input.wait_for(timeout=15000)
+                await password_input.click()
+                await asyncio.sleep(random.uniform(0.3, 0.8))
+                for char in password:
+                    await self.page.keyboard.press(char)
+                    await asyncio.sleep(random.uniform(0.05, 0.15))
+                await self.page.keyboard.press("Enter")
+                await asyncio.sleep(random.uniform(3.0, 6.0))
+            except Exception:
+                logger.info(f"YouTube login: campo password non trovato (possibile 2FA o già loggato)")
+
+            challenge = self.page.locator("input[type='tel'], #captcha, [aria-label*='Verify']")
+            if await challenge.is_visible(timeout=3000):
+                logger.warning(f"YouTube login: challenge di verifica rilevata per bot {self.bot_id}")
+                return False
+
             return True
         except Exception as e:
             logger.error(f"YouTube login fallito: {e}")
@@ -103,4 +123,6 @@ class YouTubeAdapter(PlatformAdapter):
             return "captcha"
         if "sign in" in page_text.lower() and "verify" in page_text.lower():
             return "login_required"
+        if "phone" in page_text.lower() and "verify" in page_text.lower():
+            return "phone_verify"
         return None

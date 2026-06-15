@@ -12,6 +12,7 @@ from playwright.async_api import Browser, BrowserContext, Page, async_playwright
 
 from src.browser.stealth_amplified import build_full_stealth_script
 from src.browser.http_cache import HttpCacheManager
+from src.security.cookie_encryption import CookieEncryption
 
 logger = logging.getLogger(__name__)
 
@@ -27,27 +28,47 @@ class BotDriver:
         self._profile_dir = PROFILES_DIR / f"bot_{bot_id}"
         self._profile_dir.mkdir(parents=True, exist_ok=True)
         self._cache = HttpCacheManager()
+        self._crypto = CookieEncryption(
+            master_key=os.getenv("COOKIE_ENCRYPTION_KEY", "default-dev-key-change-in-production")
+        )
 
     def _get_profile_path(self, filename: str) -> Path:
         return self._profile_dir / filename
 
     async def load_cookies(self) -> list[dict]:
-        path = self._get_profile_path("cookies.json")
+        path = self._get_profile_path("cookies.enc")
         if path.exists():
             try:
-                with open(path) as f:
+                encrypted = path.read_text().strip()
+                return self._crypto.decrypt_cookies(encrypted, self.bot_id)
+            except Exception:
+                logger.warning(f"Decrypt cookies fallito per bot {self.bot_id}, provo plaintext")
+        path_plain = self._get_profile_path("cookies.json")
+        if path_plain.exists():
+            try:
+                with open(path_plain) as f:
                     return json.load(f)
             except Exception:
                 pass
         return []
 
     async def save_cookies(self, cookies: list[dict]) -> None:
-        path = self._get_profile_path("cookies.json")
+        path = self._get_profile_path("cookies.enc")
         try:
-            with open(path, "w") as f:
-                json.dump(cookies, f, indent=2)
+            encrypted = self._crypto.encrypt_cookies(cookies, self.bot_id)
+            path.write_text(encrypted)
+            if not os.getenv("COOKIE_ENCRYPTION_KEY"):
+                path_plain = self._get_profile_path("cookies.json")
+                with open(path_plain, "w") as f:
+                    json.dump(cookies, f, indent=2)
         except Exception as e:
             logger.error(f"Salvataggio cookies bot {self.bot_id}: {e}")
+            path_plain = self._get_profile_path("cookies.json")
+            try:
+                with open(path_plain, "w") as f:
+                    json.dump(cookies, f, indent=2)
+            except Exception:
+                pass
 
     async def load_storage(self) -> dict:
         path = self._get_profile_path("storage.json")
@@ -75,8 +96,6 @@ class BotDriver:
         timezone: str = "Europe/Rome",
         locale: str = "it-IT",
     ) -> BrowserContext:
-        cache_dir = self._cache.get_cache_dir(self.bot_id)
-
         self._context = await self._browser.new_context(
             user_agent=user_agent,
             viewport=viewport,
