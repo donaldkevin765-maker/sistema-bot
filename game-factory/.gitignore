@@ -1,0 +1,28 @@
+# Godot exports
+*.apk
+*.aab
+*.ipa
+*.exe
+*.dmg
+*.zip
+
+# Godot generated
+.godot/
+import/
+.android/
+.ios/
+*.godot.uid
+
+# Build output
+builds/
+!builds/web/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
