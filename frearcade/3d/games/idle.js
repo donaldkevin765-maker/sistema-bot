@@ -30,7 +30,7 @@ function buildHUD(){hud=E.createHUD('<div id="qf-hud" style="position:absolute;t
 '<div id="qf-msg" style="position:absolute;top:25%;left:50%;transform:translate(-50%,-50%);font-size:18px;color:#ffdd00;opacity:0;"></div></div>');
 setTimeout(function(){for(var i=0;i<4;i++){var btn=document.getElementById('qf-upgrade-'+i);}},100);}
 function msg(t,d){var el=document.getElementById('qf-msg');if(!el)return;el.textContent=t;el.style.opacity=1;setTimeout(function(){el.style.opacity=0;},d||2000);}
-function buyUpgrade(idx){var u=upgrades[idx];var cost=Math.floor(u.cost*Math.pow(1.5,u.owned));if(energy>=cost&&u.owned<u.maxOwned){energy-=cost;u.owned++;if(idx===0)clickPower+=u.bonus;if(idx>=1)autoRate+=u.bonus;E.playBeep(600+idx*100,0.1,'sine',0.12);msg(u.name+' upgraded to level '+u.owned+'!',1000);}}
+function buyUpgrade(idx){var u=upgrades[idx];var cost=Math.floor(u.cost*Math.pow(1.5,u.owned));if(energy>=cost&&u.owned<u.maxOwned){energy-=cost;u.owned++;if(idx===0)clickPower+=u.bonus;if(idx>=1)autoRate+=u.bonus;E.burstParticles(new THREE.Vector3(0,1,0),0x88ccff,8,3);if(idx>=2)E.shakeScreen(0.1);E.playBeep(600+idx*100,0.1,'sine',0.12);msg(u.name+' upgraded to level '+u.owned+'!',1000);}}
 function updateHUD(){document.getElementById('qf-energy').textContent=Math.floor(energy);document.getElementById('qf-score').textContent=score;
 var costs=[Math.floor(upgrades[0].cost*Math.pow(1.5,upgrades[0].owned)),Math.floor(upgrades[1].cost*Math.pow(1.5,upgrades[1].owned)),Math.floor(upgrades[2].cost*Math.pow(1.5,upgrades[2].owned)),Math.floor(upgrades[3].cost*Math.pow(1.5,upgrades[3].owned))];
 document.getElementById('qf-ca-cost').textContent=costs[0];document.getElementById('qf-ca-count').textContent=upgrades[0].owned;

@@ -41,11 +41,11 @@ if(input.action&&input.mouseWorld){var raycaster=new THREE.Raycaster();raycaster
 for(var ti=0;ti<towers.length;ti++){var t=towers[ti];t.userData.timer-=dt;if(t.userData.timer<=0){var nearest=null,nDist=t.userData.range;for(var ei=0;ei<enemies.length;ei++){var e=enemies[ei];var d=t.position.distanceTo(e.position);if(d<nDist){nDist=d;nearest=e;}}
 if(nearest){t.userData.timer=1/t.userData.rate;var dir=new THREE.Vector3(nearest.position.x-t.position.x,0,nearest.position.z-t.position.z);dir.normalize();var p=new THREE.Mesh(new THREE.SphereGeometry(0.1,4,4),new THREE.MeshBasicMaterial({color:0xffff44}));p.position.copy(t.position);p.position.y+=0.3;p.userData={target:nearest,speed:15,life:2,dmg:t.userData.dmg};E.scene.add(p);projectiles.push(p);E.playBeep(700,0.04,'sine',0.06);}}}
 // Projectiles
-for(var pi=projectiles.length-1;pi>=0;pi--){var p=projectiles[pi];if(p.userData.target){var dir=new THREE.Vector3(p.userData.target.position.x-p.position.x,0,p.userData.target.position.z-p.position.z);var dist=dir.length();if(dist>0.2){dir.normalize();p.position.x+=dir.x*p.userData.speed*dt;p.position.z+=dir.z*p.userData.speed*dt;}else{p.userData.target.userData.hp-=p.userData.dmg;E.scene.remove(p);projectiles.splice(pi,1);}}}
+for(var pi=projectiles.length-1;pi>=0;pi--){var p=projectiles[pi];if(p.userData.target){var dir=new THREE.Vector3(p.userData.target.position.x-p.position.x,0,p.userData.target.position.z-p.position.z);var dist=dir.length();if(dist>0.2){dir.normalize();p.position.x+=dir.x*p.userData.speed*dt;p.position.z+=dir.z*p.userData.speed*dt;}else{p.userData.target.userData.hp-=p.userData.dmg;E.burstParticles(p.userData.target.position,0xff8800,5,2);E.shakeScreen(0.05);E.scene.remove(p);projectiles.splice(pi,1);}}}
 // Enemies
 for(var ei=enemies.length-1;ei>=0;ei--){var e=enemies[ei];e.userData.pathPos+=e.userData.speed*dt*0.3;var angle=e.userData.pathPos*Math.PI*2;e.position.x=Math.cos(angle)*12*(1-e.userData.pathPos*0.02);e.position.z=Math.sin(angle)*12*(1-e.userData.pathPos*0.02);
-if(e.userData.pathPos>12){lives--;E.scene.remove(e);enemies.splice(ei,1);continue;}
-if(e.userData.hp<=0){gold+=e.userData.goldValue;score+=10*wave;E.playBeep(300,0.1,'sawtooth',0.1);E.scene.remove(e);enemies.splice(ei,1);}}
+if(e.userData.pathPos>12){lives--;E.shakeScreen(0.12);E.scene.remove(e);enemies.splice(ei,1);continue;}
+if(e.userData.hp<=0){gold+=e.userData.goldValue;score+=10*wave;E.burstParticles(e.position,0xff4444,8,3);E.playBeep(300,0.1,'sawtooth',0.1);E.scene.remove(e);enemies.splice(ei,1);}}
 if(enemies.length===0&&st==='playing'){spawnWave();}
 updateHUD();}
 function render3D(){if(E.renderer&&E.scene&&E.camera)E.renderer.render(E.scene,E.camera);}

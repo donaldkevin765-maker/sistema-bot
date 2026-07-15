@@ -100,6 +100,11 @@
   // Particle system
   var particleSystems = [];
 
+  // Screen shake state
+  var shakeIntensity = 0;
+  var shakeDecay = 5;
+  var shakeOffset = null;
+
   // ──────────────────────────────────────────────
   // THREE.JS LOADER
   // ──────────────────────────────────────────────
@@ -748,6 +753,59 @@
     if (idx >= 0) particleSystems.splice(idx, 1);
   }
 
+  function shakeScreen(intensity) {
+    shakeIntensity = Math.min(1, Math.max(shakeIntensity, intensity || 0.1));
+    if (!shakeOffset && THREE) shakeOffset = new THREE.Vector3();
+  }
+
+  function burstParticles(origin, color, count, spread) {
+    var geo = new THREE.BufferGeometry();
+    var n = count || 12;
+    var pos = new Float32Array(n * 3);
+    var cols = new Float32Array(n * 3);
+    var sizes = new Float32Array(n);
+    var c = color || 0x4488ff;
+    var r = ((c >> 16) & 0xff) / 255;
+    var g = ((c >> 8) & 0xff) / 255;
+    var b = (c & 0xff) / 255;
+    var sp = spread || 2;
+    for (var i = 0; i < n; i++) {
+      pos[i * 3] = (origin ? origin.x : 0) + (Math.random() - 0.5) * 0.2;
+      pos[i * 3 + 1] = (origin ? origin.y : 0) + (Math.random() - 0.5) * 0.2;
+      pos[i * 3 + 2] = (origin ? origin.z : 0) + (Math.random() - 0.5) * 0.2;
+      cols[i * 3] = r + (Math.random() - 0.5) * 0.3;
+      cols[i * 3 + 1] = g + (Math.random() - 0.5) * 0.3;
+      cols[i * 3 + 2] = b + (Math.random() - 0.5) * 0.3;
+      sizes[i] = 0.08 + Math.random() * 0.1;
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+    geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+    var mat = new THREE.PointsMaterial({ size: 0.12, vertexColors: true, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending });
+    var points = new THREE.Points(geo, mat);
+    scene.add(points);
+    var life = 0.6 + Math.random() * 0.3;
+    var vel = [];
+    for (var j = 0; j < n; j++) {
+      vel.push({ x: (Math.random() - 0.5) * sp, y: Math.random() * sp * 1.5, z: (Math.random() - 0.5) * sp });
+    }
+    var start = performance.now();
+    function animateBurst() {
+      var elapsed = (performance.now() - start) / 1000;
+      if (elapsed >= life) { scene.remove(points); geo.dispose(); mat.dispose(); return; }
+      var p = geo.attributes.position.array;
+      for (var k = 0; k < n; k++) {
+        p[k * 3] += vel[k].x * 0.02;
+        p[k * 3 + 1] += vel[k].y * 0.02 - 0.02;
+        p[k * 3 + 2] += vel[k].z * 0.02;
+      }
+      geo.attributes.position.needsUpdate = true;
+      mat.opacity = 0.8 * (1 - elapsed / life);
+      requestAnimationFrame(animateBurst);
+    }
+    animateBurst();
+  }
+
   // ──────────────────────────────────────────────
   // HUD / 2D OVERLAY
   // ──────────────────────────────────────────────
@@ -856,6 +914,18 @@
 
     // Update particles
     updateParticles(dt);
+
+    // Screen shake
+    if (shakeIntensity > 0.001 && shakeOffset) {
+      shakeOffset.set(
+        (Math.random() - 0.5) * shakeIntensity * 0.5,
+        (Math.random() - 0.5) * shakeIntensity * 0.5,
+        (Math.random() - 0.5) * shakeIntensity * 0.3
+      );
+      camera.position.add(shakeOffset);
+      shakeIntensity *= Math.max(0, 1 - shakeDecay * dt);
+      if (shakeIntensity < 0.001) shakeIntensity = 0;
+    }
 
     // Update game
     if (currentGame && currentGame.update && !paused) {
@@ -994,6 +1064,10 @@
     createParticleSystem: createParticleSystem,
     emitParticles: emitParticles,
     destroyParticleSystem: destroyParticleSystem,
+    burstParticles: burstParticles,
+
+    // Game feel
+    shakeScreen: shakeScreen,
 
     // HUD
     createHUD: createHUD,

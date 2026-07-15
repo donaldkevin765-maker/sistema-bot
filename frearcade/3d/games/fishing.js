@@ -31,8 +31,8 @@ function update(dt,input){if(st==='ready'){if(input.action){st='playing';documen
 playTime+=dt;if(!player||!bobber)return;
 if(playTime>30){day++;playTime=0;msg('Day '+day+'!',2000);}
 if(!lineActive){if(input.shoot){castPower=Math.min(1,castPower+dt*1.2);}else if(castPower>0){lineActive=true;var dir=new THREE.Vector3(0,0,-1);dir.applyEuler(new THREE.Euler(0,0.3,0));var castPos=player.position.clone().add(dir.multiplyScalar(3+castPower*15));castPos.y=0.2;bobber.position.copy(castPos);bobber.visible=true;castPower=0;E.playBeep(500,0.08,'sine',0.1);fishTimer=2+Math.random()*5;}}else{bobber.position.y=0.15+Math.sin(playTime*3+Date.now())*0.02;
-fishTimer-=dt;if(fishTimer<=0&&!reeling){hasFish=true;reeling=true;msg('Fish on the line! Click rapidly!',1500);E.playBeep(300,0.1,'sawtooth',0.08);}
-if(reeling&&input.action){reeling=false;hasFish=false;fishCaught++;score+=50+Math.floor(Math.random()*50);lineActive=false;bobber.visible=false;msg('Fish caught! +'+score,2000);E.playBeep(800,0.15,'sine',0.15);setTimeout(function(){if(!lineActive)msg('Cast again!',1000);},500);}
+fishTimer-=dt;if(fishTimer<=0&&!reeling){hasFish=true;reeling=true;E.shakeScreen(0.08);msg('Fish on the line! Click rapidly!',1500);E.playBeep(300,0.1,'sawtooth',0.08);}
+if(reeling&&input.action){reeling=false;hasFish=false;fishCaught++;score+=50+Math.floor(Math.random()*50);lineActive=false;bobber.visible=false;E.burstParticles(bobber.position,0x44aaff,10,2);msg('Fish caught! +'+score,2000);E.playBeep(800,0.15,'sine',0.15);setTimeout(function(){if(!lineActive)msg('Cast again!',1000);},500);}
 if(reeling&&!input.action){var progress=Math.sin(Date.now()*0.01)*0.5+0.5;if(progress>0.8){reeling=false;hasFish=false;msg('Fish got away!',1000);lineActive=false;bobber.visible=false;}}
 if(input.keysPressed['KeyE']&&lineActive){lineActive=false;bobber.visible=false;msg('Line retrieved.',1000);}}
 // Water ripples
