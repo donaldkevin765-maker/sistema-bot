@@ -50,6 +50,7 @@ function registerGame(name,game){GAMES.push(game);}
 <script src="data/content-db.js"></script>
 <script src="data/procgen.js"></script>
 <script src="data/data-loader.js"></script>
+<script src="data/bridge.js"></script>
 <!-- Game Data Bundles (28 games × 10 content tables each = ~1.5M lines) -->
 <script src="data/games/space-blaster-data.js"></script>
 <script src="data/games/block-breaker-data.js"></script>
@@ -170,7 +171,7 @@ if(!gameObj){container.innerHTML='<div style="color:red;padding:20px;">Error: Ga
 
 // Load ContentDB data for this game
 var gameId=game.ns?game.ns.charAt(0).toLowerCase()+game.ns.slice(1).replace(/[A-Z]/g,function(c){return'-'+c.toLowerCase()}):'';
-try{var gameData=window.loadGameData?window.loadGameData(gameId):null;if(gameData)window.__gameData=gameData;else console.log('['+game.name+'] No data loaded');}catch(e){console.warn('['+game.name+'] Data load error:',e);}
+try{var gameData=window.loadGameData?window.loadGameData(gameId):null;if(gameData)window.__gameData=gameData;else{window.__gameData={weapons:[],enemies:[],levels:[],quests:[],lore:[],skills:[],achievements:[],crafting:[],consumables:[]};console.log('['+game.name+'] No data loaded');}}catch(e){console.warn('['+game.name+'] Data load error:',e);window.__gameData={weapons:[],enemies:[],levels:[],quests:[],lore:[],skills:[],achievements:[],crafting:[],consumables:[]};}
 
 if(game.dim==='3D'){
 // 3D game: use engine3d
@@ -179,6 +180,7 @@ container.innerHTML='<div style="color:red;padding:20px;">3D Engine not loaded.<
 }
 try{
 var engine3d=window.FreeArcade3D;
+engine3d.gameData=window.__gameData||{};
 engine3d.init(canvas);
 gameObj.init(engine3d);
 gameInstances=gameObj;
@@ -199,6 +201,7 @@ try{
 var engine=window.FreeArcade;
 engine.width=canvas.width;engine.height=canvas.height;
 engine.ctx=ctx;engine.canvas=canvas;
+engine.gameData=window.__gameData||{};
 gameObj.init(engine);
 gameInstances=gameObj;
 
