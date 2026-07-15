@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>FreeArcade — 30 Games</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a1a;color:#fff;font-family:'Segoe UI',Arial,sans-serif;overflow:hidden;width:100vw;height:100vh}
+#header{position:absolute;top:0;left:0;right:0;height:48px;background:rgba(10,10,26,0.95);border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;padding:0 16px;z-index:100}
+#header h1{font-size:16px;font-weight:700;background:linear-gradient(135deg,#4488ff,#ff44aa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-right:20px}
+#header .nav{display:flex;gap:4px;flex-wrap:wrap;flex:1}
+#header .nav a{padding:4px 10px;border-radius:4px;font-size:11px;color:#888;cursor:pointer;text-decoration:none;transition:all 0.15s}
+#header .nav a:hover{color:#fff;background:rgba(255,255,255,0.08)}
+#header .nav a.active{color:#fff;background:rgba(68,136,255,0.2);border:1px solid rgba(68,136,255,0.3)}
+#game-container{position:absolute;top:48px;left:0;right:0;bottom:0;background:#000}
+#game-container canvas{display:block;width:100%;height:100%}
+#menu{position:absolute;top:48px;left:0;right:0;bottom:0;overflow-y:auto;background:radial-gradient(ellipse at center,#0f0f2a,#0a0a1a);padding:30px 20px}
+#menu h2{font-size:24px;margin-bottom:6px;text-align:center}
+#menu .subtitle{color:#666;text-align:center;font-size:13px;margin-bottom:24px}
+.game-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;max-width:1200px;margin:0 auto}
+.game-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:16px;cursor:pointer;transition:all 0.2s}
+.game-card:hover{background:rgba(255,255,255,0.08);border-color:rgba(68,136,255,0.3);transform:translateY(-2px)}
+.game-card .title{font-size:14px;font-weight:600;margin-bottom:4px}
+.game-card .genre{font-size:10px;color:#4488ff;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.game-card .desc{font-size:11px;color:#666;line-height:1.4}
+.game-card .dim{font-size:10px;color:#444;margin-top:6px}
+.game-card .dim span{color:#666}
+.game-card.d2{border-left:2px solid #4488ff}
+.game-card.d3{border-left:2px solid #ff44aa}
+#back-btn{position:absolute;top:54px;left:10px;z-index:50;padding:6px 14px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.15);border-radius:4px;color:#aaa;font-size:12px;cursor:pointer;display:none}
+#back-btn:hover{color:#fff;border-color:rgba(255,255,255,0.3)}
+</style>
+</head>
+<body>
+<div id="header"><h1>FreeArcade</h1>
+<div class="nav" id="nav"></div></div>
+<div id="game-container"></div>
+<button id="back-btn" onclick="showMenu()">← Back to Menu</button>
+<div id="menu"></div>
+
+<script>
+var GAMES=[];var CURRENT_GAME=null;var gameContainer,menuEl,backBtn,headerEl;
+var gameInstances={};
+
+// Register all games
+function registerGame(name,game){GAMES.push(game);}
+
+// ====== 2D GAMES ======
+</script>
+<!-- Data Framework -->
+<script src="data/content-db.js"></script>
+<script src="data/procgen.js"></script>
+<script src="data/data-loader.js"></script>
+<!-- Game Data Bundles (28 games × 10 content tables each = ~1.5M lines) -->
+<script src="data/games/space-blaster-data.js"></script>
+<script src="data/games/block-breaker-data.js"></script>
+<script src="data/games/maze-runner-data.js"></script>
+<script src="data/games/snake-evolved-data.js"></script>
+<script src="data/games/arena-shooter-data.js"></script>
+<script src="data/games/rungun-data.js"></script>
+<script src="data/games/fortress-data.js"></script>
+<script src="data/games/twin-stick-data.js"></script>
+<script src="data/games/multiplayer-data.js"></script>
+<script src="data/games/fps-data.js"></script>
+<script src="data/games/racing-data.js"></script>
+<script src="data/games/survival-data.js"></script>
+<script src="data/games/rpg-data.js"></script>
+<script src="data/games/mech-data.js"></script>
+<script src="data/games/battle-royale-data.js"></script>
+<script src="data/games/platformer-data.js"></script>
+<script src="data/games/stealth-data.js"></script>
+<script src="data/games/strategy-data.js"></script>
+<script src="data/games/sports-data.js"></script>
+<script src="data/games/puzzle-data.js"></script>
+<script src="data/games/horror-data.js"></script>
+<script src="data/games/rhythm-data.js"></script>
+<script src="data/games/flying-data.js"></script>
+<script src="data/games/tower-defense-data.js"></script>
+<script src="data/games/fighting-data.js"></script>
+<script src="data/games/golf-data.js"></script>
+<script src="data/games/fishing-data.js"></script>
+<script src="data/games/idle-data.js"></script>
+<!-- 2D Games -->
+<script src="games/engine.js"></script>
+<script src="games/save.js"></script>
+<script src="games/space-blaster.js"></script>
+<script src="games/block-breaker.js"></script>
+<script src="games/maze-runner.js"></script>
+<script src="games/snake-evolved.js"></script>
+<script src="games/arena-shooter.js"></script>
+<script src="games/rungun.js"></script>
+<script src="games/fortress.js"></script>
+<script src="games/twin-stick.js"></script>
+<script src="games/multiplayer.js"></script>
+
+<!-- 3D Engine and Games -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="3d/engine3d.js"></script>
+<script src="3d/games/fps.js"></script>
+<script src="3d/games/racing.js"></script>
+<script src="3d/games/survival.js"></script>
+<script src="3d/games/rpg.js"></script>
+<script src="3d/games/mech.js"></script>
+<script src="3d/games/battle-royale.js"></script>
+<script src="3d/games/platformer.js"></script>
+<script src="3d/games/stealth.js"></script>
+<script src="3d/games/strategy.js"></script>
+<script src="3d/games/sports.js"></script>
+<script src="3d/games/puzzle.js"></script>
+<script src="3d/games/horror.js"></script>
+<script src="3d/games/rhythm.js"></script>
+<script src="3d/games/flying.js"></script>
+<script src="3d/games/tower-defense.js"></script>
+<script src="3d/games/fighting.js"></script>
+<script src="3d/games/golf.js"></script>
+<script src="3d/games/fishing.js"></script>
+<script src="3d/games/idle.js"></script>
+
+<script>
+// Initialize
+document.addEventListener('DOMContentLoaded',function(){
+gameContainer=document.getElementById('game-container');
+menuEl=document.getElementById('menu');
+backBtn=document.getElementById('back-btn');
+headerEl=document.getElementById('header');
+buildNav();
+showMenu();
+});
+
+function buildNav(){
+var nav=document.getElementById('nav');
+nav.innerHTML='<a onclick="showMenu()" class="active">Arcade</a>';
+var genres={};
+GAMES.forEach(function(g){if(!genres[g.genre])genres[g.genre]=0;genres[g.genre]++;});
+Object.keys(genres).sort().forEach(function(genre){
+nav.innerHTML+='<a onclick="filterGenre(\''+genre+'\')">'+genre.charAt(0).toUpperCase()+genre.slice(1)+' ('+genres[genre]+')</a>';
+});
+}
+
+function filterGenre(genre){
+var cards=document.querySelectorAll('.game-card');
+for(var i=0;i<cards.length;i++){
+if(cards[i].dataset.genre===genre||!genre)cards[i].style.display='';
+else cards[i].style.display='none';
+}
+}
+
+function showMenu(){
+if(CURRENT_GAME){try{if(gameInstances.destroy)gameInstances.destroy();}catch(e){}
+if(window.FreeArcade&&window.FreeArcade.stopLoop)window.FreeArcade.stopLoop();}
+CURRENT_GAME=null;gameInstances={};
+gameContainer.style.display='none';backBtn.style.display='none';
+menuEl.style.display='';headerEl.style.display='';
+}
+
+function launchGame(game){
+menuEl.style.display='none';headerEl.style.display='none';
+gameContainer.style.display='';backBtn.style.display='';
+
+var container=gameContainer;
+container.innerHTML='';
+var canvas=document.createElement('canvas');
+canvas.width=container.clientWidth||1024;
+canvas.height=container.clientHeight||768;
+container.appendChild(canvas);
+
+CURRENT_GAME=game;
+var ctx=canvas.getContext('2d');
+var gameObj=window[game.ns]||window[game.name.replace(/ /g,'')];
+if(!gameObj){container.innerHTML='<div style="color:red;padding:20px;">Error: Game "'+game.name+'" not found.</div>';return;}
+
+// Load ContentDB data for this game
+var gameId=game.ns?game.ns.charAt(0).toLowerCase()+game.ns.slice(1).replace(/[A-Z]/g,function(c){return'-'+c.toLowerCase()}):'';
+try{var gameData=window.loadGameData?window.loadGameData(gameId):null;if(gameData)window.__gameData=gameData;else console.log('['+game.name+'] No data loaded');}catch(e){console.warn('['+game.name+'] Data load error:',e);}
+
+if(game.dim==='3D'){
+// 3D game: use engine3d
+if(!window.FreeArcade3D){
+container.innerHTML='<div style="color:red;padding:20px;">3D Engine not loaded.</div>';return;
+}
+try{
+var engine3d=window.FreeArcade3D;
+engine3d.init(canvas);
+gameObj.init(engine3d);
+gameInstances=gameObj;
+
+function loop3D(){if(CURRENT_GAME!==game)return;
+var input=engine3d.input||{};
+gameObj.update(1/60,input);
+gameObj.render3D();
+requestAnimationFrame(loop3D);}
+loop3D();
+}catch(e){container.innerHTML='<div style="color:red;padding:20px;">3D Error: '+e.message+'</div>';}
+}else{
+// 2D game: use engine
+if(!window.FreeArcade){
+container.innerHTML='<div style="color:red;padding:20px;">2D Engine not loaded.</div>';return;
+}
+try{
+var engine=window.FreeArcade;
+engine.width=canvas.width;engine.height=canvas.height;
+engine.ctx=ctx;engine.canvas=canvas;
+gameObj.init(engine);
+gameInstances=gameObj;
+
+var lastTime=performance.now();
+function loop2D(time){if(CURRENT_GAME!==game)return;
+var dt=Math.min((time-lastTime)/1000,0.05);lastTime=time;
+var input=engine.input||{};
+gameObj.update(dt,input);
+if(gameObj.render)gameObj.render(dt);else engine.renderFrame();
+requestAnimationFrame(loop2D);}
+loop2D(lastTime);
+}catch(e){container.innerHTML='<div style="color:red;padding:20px;">2D Error: '+e.message+'</div>';}
+}
+}
+
+// Auto-detect games from window properties after all scripts load
+var KNOWN_NS={
+// 2D
+SpaceBlaster:['Space Blaster','2D','space-shooter','Infinite side-scrolling space shooter with permanent upgrades'],
+BlockBreaker:['Block Breaker','2D','paddle','Breakout-style brick breaker with power-ups and levels'],
+MazeRunner:['Maze Runner','2D','maze','Navigate procedurally generated mazes, avoid traps'],
+SnakeEvolved:['Snake Evolved','2D','snake','Classic snake with power-ups, obstacles, and speed ramp'],
+ArenaShooter:['Arena Shooter','2D','arena','Top-down wave arena shooter with 4 enemy types'],
+Rungun:['Run n Gun','2D','platformer','Auto-scrolling side-scrolling run and gun platformer'],
+FortressSiege:['Fortress Siege','2D','tower-defense','Tower defense — build towers along the path'],
+TwinStickFury:['Twin Stick Fury','2D','twin-stick','Twin-stick shooter — move with WASD, aim with mouse'],
+MultiplayerMayhem:['Multiplayer Mayhem','2D','multiplayer','Local multiplayer arena — last one standing wins'],
+// 3D
+EchoPoint:['Echo Point','3D','fps','Arena FPS with wave combat, 3 weapons, headshots, combos'],
+NeonVelocity:['Neon Velocity','3D','racing','Neon racing with drift, boost, AI opponents, 3 laps'],
+WildFrontier:['Wild Frontier','3D','survival','Open world survival with day/night, crafting, wildlife'],
+ShadowRealm:['Shadow Realm','3D','rpg','Action RPG with dungeon crawling, skills, loot, bosses'],
+TitanWars:['Titan Wars','3D','mech','Mech arena combat with heat management, 3 weapon systems'],
+ApexIsland:['Apex Island','3D','battle-royale','100-player battle royale — loot, circle, eliminate bots'],
+SkywardRun:['Skyward Run','3D','platformer','3D parkour platformer with dashing, wall-running, coins'],
+ShadowOps:['Shadow Ops','3D','stealth','Stealth infiltration — avoid detection, disable guards'],
+IronCommand:['Iron Command','3D','strategy','RTS — build base, train units, defend against waves'],
+StrikeZone:['Strike Zone','3D','sports','Futuristic dodgeball arena — charge and throw'],
+CrystalMind:['Crystal Mind','3D','puzzle','Match-3 puzzle game with chain reactions in 3D'],
+DarkCorridor:['Dark Corridor','3D','horror','Survival horror — manage flashlight battery and sanity'],
+BeatCascade:['Beat Cascade','3D','rhythm','Rhythm game — hit notes in time with the beat'],
+SkyReaver:['Sky Reaver','3D','flying','Dogfight in the sky — shoot down enemies, dodge missiles'],
+FortressOutpost:['Fortress Outpost','3D','tower-defense','3D tower defense with cannon, arrow, and magic towers'],
+RingOfFury:['Ring of Fury','3D','fighting','3D arena fighting with combos, blocking, special moves'],
+FairwayKing:['Fairway King','3D','golf','3D golf with wind, terrain, club selection across holes'],
+DeepWaters:['Deep Waters','3D','fishing','Relaxing lake fishing with day cycle and catch minigame'],
+QuantumForge:['Quantum Forge','3D','idle','Idle clicker — generate energy, buy upgrades, grow forever']
+};
+
+function detectGames(){
+GAMES=[];
+for(var ns in KNOWN_NS){
+var gameObj=window[ns];
+if(gameObj&&typeof gameObj==='object'&&gameObj.name){
+var info=KNOWN_NS[ns];
+gameObj.ns=ns;
+gameObj.dim=info[1];
+gameObj.genre=info[2];
+if(!gameObj.description)gameObj.description=info[3];
+GAMES.push(gameObj);
+}
+}
+}
+
+// Wait for scripts, detect games, then render
+setTimeout(function(){detectGames();renderMenu();},1000);
+
+function renderMenu(){
+var html='<h2>FreeArcade</h2><div class="subtitle">'+GAMES.length+' Games — 2D + 3D</div><div class="game-grid">';
+GAMES.sort(function(a,b){if(a.dim!==b.dim)return a.dim<b.dim?-1:1;return a.name.localeCompare(b.name);});
+for(var i=0;i<GAMES.length;i++){
+var g=GAMES[i];
+var dimClass=g.dim==='3D'?'d3':'d2';
+var dimLabel=g.dim||'2D';
+html+='<div class="game-card '+dimClass+'" data-genre="'+g.genre+'" onclick="launchGame(GAMES['+i+'])">'+
+'<div class="title">'+g.name+'</div>'+
+'<div class="genre">'+g.genre+' · '+dimLabel+'</div>'+
+'<div class="desc">'+(g.description||'')+'</div>'+
+'</div>';
+}
+html+='</div>';menuEl.innerHTML=html;
+}
+</script>
+</body>
+</html>

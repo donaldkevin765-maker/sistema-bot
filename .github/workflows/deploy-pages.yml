@@ -1,4 +1,4 @@
-name: Deploy Chromatic Hub (Web) to GitHub Pages
+name: Deploy FreeArcade to GitHub Pages
 
 on:
   push:
