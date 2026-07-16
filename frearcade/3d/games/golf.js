@@ -37,18 +37,40 @@ function buildHUD(){hud=E.createHUD('<div id="fk-hud" style="position:absolute;t
 '<div id="fk-msg" style="position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);font-size:16px;color:#ffdd00;opacity:0;"></div></div>');}
 function msg(t,d){var el=document.getElementById('fk-msg');if(!el)return;el.textContent=t;el.style.opacity=1;setTimeout(function(){el.style.opacity=0;},d||2000);}
 function updateHUD(){document.getElementById('fk-hole').textContent=hole;document.getElementById('fk-par').textContent=par;document.getElementById('fk-strokes').textContent=strokes;document.getElementById('fk-score').textContent=score;document.getElementById('fk-power').style.width=Math.round(power*100)+'%';if(st==='ready'){var btn=document.getElementById('fk-start');if(btn){var p=0.5+Math.sin(Date.now()*0.003)*0.5;btn.style.transform='scale('+(1+p*0.05)+')';}}}
-function update(dt,input){if(st==='ready'){if(input.action){st='playing';document.getElementById('fk-ready').style.display='none';}updateHUD();return;}
-playTime+=dt;if(!ball||!holeObj)return;
-if(!ballActive){aimAngle+=input.mouseDeltaX*0.01;
-if(input.shoot){power=Math.min(1,power+dt*1.5);}else if(power>0){ballActive=true;var dir=new THREE.Vector3(0,0,-1);var euler=new THREE.Euler(0,aimAngle,0);dir.applyEuler(euler);dir.y=0.2*power;ballVel=new THREE.Vector3(dir.x*power*20,dir.y*power*15,dir.z*power*20);strokes++;E.playBeep(400+power*200,0.1,'sine',0.12);power=0;}}else{ball.position.x+=ballVel.x*dt;ball.position.y+=ballVel.y*dt;ball.position.z+=ballVel.z*dt;
+function processAiming(input,dt){
+aimAngle+=input.mouseDeltaX*0.01;
+if(input.shoot){power=Math.min(1,power+dt*1.5);}else if(power>0){ballActive=true;var dir=new THREE.Vector3(0,0,-1);var euler=new THREE.Euler(0,aimAngle,0);dir.applyEuler(euler);dir.y=0.2*power;ballVel=new THREE.Vector3(dir.x*power*20,dir.y*power*15,dir.z*power*20);strokes++;E.playBeep(400+power*200,0.1,'sine',0.12);power=0;}
+}
+
+function applyBallPhysics(dt){
+ball.position.x+=ballVel.x*dt;ball.position.y+=ballVel.y*dt;ball.position.z+=ballVel.z*dt;
 ballVel.x*=0.98;ballVel.z*=0.98;ballVel.y-=9.8*dt;
 if(ball.position.y<=0.1){ball.position.y=0.1;ballVel.x*=0.85;ballVel.z*=0.85;if(ballVel.y<-0.5)ballVel.y=-ballVel.y*0.3;else ballVel.y=0;}
-if(Math.abs(ballVel.x)<0.01&&Math.abs(ballVel.z)<0.01&&Math.abs(ballVel.y)<0.01){ballActive=false;ballPos=ball.position.clone();
-var hDist=ball.position.distanceTo(holeObj.position);if(hDist<0.3){E.burstParticles(holeObj.position,0xffff44,15,2);E.shakeScreen(0.08);msg('Hole in '+(strokes===1?'ONE!':'par!'),2000);score+=strokes===1?300:100-par*10;hole++;strokes=0;if(hole>course.length){msg('Tournament complete! Score: '+score,5000);st='ready';setTimeout(function(){if(E)init(E);},3000);}else{setTimeout(function(){if(E)init(E);},1000);}}
-for(var hi=0;hi<hazards.length;hi++){var haz=hazards[hi];if(ball.position.distanceTo(haz.pos)<haz.radius){E.shakeScreen(0.12);msg('Water hazard! +1 stroke',1500);strokes++;ball.position.set(0,0.1,-25);ballVel.set(0,0,0);ballActive=false;break;}}}}
-// Camera
+}
+
+function checkHoleIn(){
+var hDist=ball.position.distanceTo(holeObj.position);
+if(hDist<0.3){E.burstParticles(holeObj.position,0xffff44,15,2);E.shakeScreen(0.08);msg('Hole in '+(strokes===1?'ONE!':'par!'),2000);score+=strokes===1?300:100-par*10;hole++;strokes=0;
+if(hole>course.length){msg('Tournament complete! Score: '+score,5000);st='ready';setTimeout(function(){if(E)init(E);},3000);}else{setTimeout(function(){if(E)init(E);},1000);}}
+}
+
+function checkHazards(){
+for(var hi=0;hi<hazards.length;hi++){var haz=hazards[hi];if(ball.position.distanceTo(haz.pos)<haz.radius){E.shakeScreen(0.12);msg('Water hazard! +1 stroke',1500);strokes++;ball.position.set(0,0.1,-25);ballVel.set(0,0,0);ballActive=false;break;}}
+}
+
+function processBall(dt){
+applyBallPhysics(dt);
+if(Math.abs(ballVel.x)<0.01&&Math.abs(ballVel.z)<0.01&&Math.abs(ballVel.y)<0.01){ballActive=false;ballPos=ball.position.clone();checkHoleIn();checkHazards();}
+}
+
+function updateCamera(dt){
 var camTarget=ballActive?ball.position:ballPos;E.camera.position.lerp(new THREE.Vector3(camTarget.x+Math.sin(aimAngle)*5,3,camTarget.z+Math.cos(aimAngle)*5),3*dt);E.camera.lookAt(camTarget);
-updateHUD();}
+}
+
+function update(dt,input){if(st==='ready'){if(input.action){st='playing';document.getElementById('fk-ready').style.display='none';}updateHUD();return;}
+playTime+=dt;if(!ball||!holeObj)return;
+if(!ballActive){processAiming(input,dt);}else{processBall(dt);}
+updateCamera(dt);updateHUD();}
 function render3D(){if(E.renderer&&E.scene&&E.camera)E.renderer.render(E.scene,E.camera);}
 function render2D(ctx){}
 function destroy(){if(hud&&hud.parentNode)hud.parentNode.removeChild(hud);if(terrain)E.scene.remove(terrain);if(ball)E.scene.remove(ball);if(holeObj)E.scene.remove(holeObj);ball=null;holeObj=null;E=null;THREE=null;}

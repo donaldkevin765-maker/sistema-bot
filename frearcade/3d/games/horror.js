@@ -38,35 +38,55 @@ function buildHUD(){hud=E.createHUD('<div id="dh-hud" style="position:absolute;t
 '<div id="dh-msg" style="position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);font-size:18px;color:#ff4444;opacity:0;"></div></div>');}
 function msg(t,d){var el=document.getElementById('dh-msg');if(!el)return;el.textContent=t;el.style.opacity=1;setTimeout(function(){el.style.opacity=0;},d||2000);}
 function updateHUD(){document.getElementById('dh-hp').style.width=Math.max(0,health)+'%';document.getElementById('dh-san').style.width=Math.max(0,sanity)+'%';document.getElementById('dh-bat').style.width=Math.max(0,battery)+'%';document.getElementById('dh-score').textContent=score;document.getElementById('dh-time').textContent=Math.floor(playTime);if(st==='ready'){var btn=document.getElementById('dh-start');if(btn){var p=0.5+Math.sin(Date.now()*0.003)*0.5;btn.style.transform='scale('+(1+p*0.05)+')';}}}
-function update(dt,input){if(st==='ready'){if(input.action){st='playing';document.getElementById('dh-ready').style.display='none';msg('Find the exit. Avoid the darkness...',3000);}updateHUD();return;}
-playTime+=dt;if(!player||health<=0){if(health<=0&&st!=='ready'){msg('Consumed by darkness... Score: '+score,5000);st='ready';setTimeout(function(){if(E)init(E);},3000);}updateHUD();return;}
+function processMovement(input,dt){
 var dx=0,dz=0;if(input.left)dx-=1;if(input.right)dx+=1;if(input.up)dz-=1;if(input.down)dz+=1;if(dx!==0&&dz!==0){dx*=0.707;dz*=0.707;}
 var wdx=dx*Math.cos(player.yaw)-dz*Math.sin(player.yaw);var wdz=dx*Math.sin(player.yaw)+dz*Math.cos(player.yaw);
 player.group.position.x+=wdx*player.speed*dt;player.group.position.z+=wdz*player.speed*dt;
 player.group.position.x=Math.max(-9,Math.min(9,player.group.position.x));player.group.position.z=Math.max(-9,Math.min(9,player.group.position.z));
 if(dx!==0||dz!==0){player.group.rotation.y=Math.atan2(wdx,wdz);footstepTimer+=dt;if(footstepTimer>0.5){footstepTimer=0;E.playBeep(80+Math.random()*20,0.04,'sine',0.03);}}
+}
+
+function processLook(input){
 if(input.pointerLocked)player.yaw-=input.mouseDeltaX*0.003;
+}
+
+function processFlashlight(input,dt){
 if(input.keysPressed['KeyF']){player.flashlight=!player.flashlight;if(player.spotLight)player.spotLight.visible=player.flashlight;}
 if(!player.flashlight&&Math.random()<0.001){battery+=0.5;}
-// Battery drain
 if(player.flashlight){battery-=2*dt;if(battery<=0){battery=0;player.flashlight=false;if(player.spotLight)player.spotLight.visible=false;}}
-// Sanity
+}
+
+function updateSanity(){
 var distToEnemy=100;for(var ei=0;ei<enemies.length;ei++){var e=enemies[ei];var d=player.group.position.distanceTo(e.position);if(d<distToEnemy)distToEnemy=d;}
 if(!player.flashlight){sanity-=3*dt;}
 if(distToEnemy<5){sanity-=5*dt;}else{sanity+=1*dt;}
 sanity=Math.max(0,Math.min(100,sanity));
-// Enemies
+}
+
+function updateEnemies(dt){
 for(var ei=enemies.length-1;ei>=0;ei--){var e=enemies[ei];var tpx=player.group.position.x,tpz=player.group.position.z;var edx=tpx-e.position.x;var edz=tpz-e.position.z;var edist=Math.sqrt(edx*edx+edz*edz);
 if(edist<e.userData.detectRange&&player.flashlight){e.userData.state='chase';}
 if(e.userData.state==='idle'){e.userData.phase+=dt;e.position.x=e.userData.idlePos[0]+Math.sin(e.userData.phase)*2;e.position.z=e.userData.idlePos[2]+Math.cos(e.userData.phase)*2;}else if(e.userData.state==='chase'){e.position.x+=edx/edist*e.userData.speed*dt;e.position.z+=edz/edist*e.userData.speed*dt;
 if(edist<1.5){e.userData.attackTimer-=dt;if(e.userData.attackTimer<=0){health-=15;E.shakeScreen(0.2);E.playBeep(SCARE_SOUNDS[Math.floor(Math.random()*SCARE_SOUNDS.length)],0.3,'sawtooth',0.2);e.userData.attackTimer=1.5;var js=document.getElementById('dh-jumpscare');if(js)js.style.display='block';setTimeout(function(){if(js)js.style.display='none';},200);}}
 if(edist>20)e.userData.state='idle';}
-// Damage enemy with flashlight
 if(edist<3&&player.flashlight){e.userData.hp-=5*dt;if(e.userData.hp<=0){E.burstParticles(e.position,0xff4444,12,3);E.shakeScreen(0.12);E.scene.remove(e);enemies.splice(ei,1);score+=200;E.playBeep(400,0.2,'sawtooth',0.15);msg('Entity banished!',1500);}}}
-// Scatter items
+}
+
+function updateItems(){
 if(Math.random()<0.002){var ix=(Math.random()-0.5)*16,iz=(Math.random()-0.5)*16;var itm=new THREE.Mesh(new THREE.SphereGeometry(0.1,4,4),new THREE.MeshBasicMaterial({color:0x44ff88}));itm.position.set(ix,0.2,iz);itm.userData={type:'battery'};E.scene.add(itm);items.push(itm);}
 for(var ii=items.length-1;ii>=0;ii--){var it=items[ii];if(player.group.position.distanceTo(it.position)<1){if(it.userData.type==='battery'){battery=Math.min(100,battery+20);E.burstParticles(it.position,0x44ff88,8,2);E.playBeep(600,0.1,'sine',0.1);}E.scene.remove(it);items.splice(ii,1);}}
-pulsePhase+=dt;var pulse=0.5+Math.sin(pulsePhase*3)*0.5;var vignette=document.getElementById('dh-vignette');if(vignette)vignette.style.opacity=sanity<30?0.3+(30-sanity)/100*0.7:0.3;
+}
+
+function updateVignette(){
+pulsePhase+=dt;var vignette=document.getElementById('dh-vignette');
+if(vignette)vignette.style.opacity=sanity<30?0.3+(30-sanity)/100*0.7:0.3;
+}
+
+function update(dt,input){
+if(st==='ready'){if(input.action){st='playing';document.getElementById('dh-ready').style.display='none';msg('Find the exit. Avoid the darkness...',3000);}updateHUD();return;}
+playTime+=dt;if(!player||health<=0){if(health<=0&&st!=='ready'){msg('Consumed by darkness... Score: '+score,5000);st='ready';setTimeout(function(){if(E)init(E);},3000);}updateHUD();return;}
+processMovement(input,dt);processLook(input);processFlashlight(input,dt);
+updateSanity();updateEnemies(dt);updateItems();updateVignette();
 updateCamera(dt);updateHUD();}
 function render3D(){if(E.renderer&&E.scene&&E.camera)E.renderer.render(E.scene,E.camera);}
 function render2D(ctx){}

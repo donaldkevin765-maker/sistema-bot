@@ -30,35 +30,53 @@ function buildHUD(){hud=E.createHUD('<div id="rf-hud" style="position:absolute;t
 function msg(t,d){var el=document.getElementById('rf-msg');if(!el)return;el.textContent=t;el.style.opacity=1;setTimeout(function(){el.style.opacity=0;},d||2000);}
 function dealDamage(target,amount){target.userData.hp-=amount;E.shakeScreen(0.12);if(target===opponent){score+=amount;combo++;E.burstParticles(target.position,0xff6600,6,2);E.playBeep(500+amount*5,0.1,'square',0.12);}else{E.burstParticles(target.position,0x4488ff,6,2);E.playBeep(200,0.1,'sawtooth',0.1);}}
 function updateHUD(){if(!player||!opponent)return;var php=Math.max(0,player.userData.hp);var ohp=Math.max(0,opponent.userData.hp);document.getElementById('rf-php').style.width=php+'%';document.getElementById('rf-ohp').style.width=ohp+'%';document.getElementById('rf-round').textContent=round;if(st==='ready'){var btn=document.getElementById('rf-start');if(btn){var p=0.5+Math.sin(Date.now()*0.003)*0.5;btn.style.transform='scale('+(1+p*0.05)+')';}}}
-function update(dt,input){if(st==='ready'){if(input.action){st='playing';document.getElementById('rf-ready').style.display='none';msg('FIGHT!',1500);}updateHUD();return;}
-playTime+=dt;if(!player||!opponent)return;
-if(player.userData.hp<=0){msg('Round '+round+' lost!',2000);if(round>=3){msg('Match lost! Score: '+score,4000);st='ready';setTimeout(function(){if(E)init(E);},3000);}else{round++;playerHP=100;opponentHP=100;player.userData.hp=100;opponent.userData.hp=100;setTimeout(function(){msg('Round '+round+'! FIGHT!',1500);},500);}return;}
-if(opponent.userData.hp<=0){E.burstParticles(opponent.position,0xff8844,20,4);E.shakeScreen(0.2);score+=500;if(round>=3){msg('CHAMPION! Score: '+score,4000);st='ready';setTimeout(function(){if(E)init(E);},3000);}else{round++;playerHP=100;opponentHP=100;player.userData.hp=100;opponent.userData.hp=100;setTimeout(function(){msg('Round '+round+'! FIGHT!',1500);},500);}return;}
-// Player movement
+function handlePlayerMovement(input,dt){
 var dx=0,dz=0;if(input.left)dx-=1;if(input.right)dx+=1;if(input.up)dz-=1;if(input.down)dz+=1;if(dx!==0&&dz!==0){dx*=0.707;dz*=0.707;}
 player.position.x+=dx*4*dt;player.position.z+=dz*4*dt;player.position.x=Math.max(-6,Math.min(6,player.position.x));player.position.z=Math.max(-4,Math.min(6,player.position.z));
 if(dx!==0||dz!==0){player.rotation.y=Math.atan2(dx,dz);}
-// Stamina regen
+}
+
+function regenStamina(){
 if(player.userData.stamina<100)player.userData.stamina+=8*dt;
 if(opponent.userData.stamina<100)opponent.userData.stamina+=8*dt;
-// Player attacks
+}
+
+function processPlayerAttack(input){
 var blocking=input.keysPressed['ShiftLeft']||input.keysPressed['ShiftRight'];
 if(input.action&&player.userData.stamina>10&&!blocking){player.userData.stamina-=10;var dist=player.position.distanceTo(opponent.position);if(dist<2.5){dealDamage(opponent,PUNCH_DMG);msg('Punch!',500);}player.userData.punchAnim=0.3;E.playBeep(400,0.06,'square',0.08);}
 if(input.keysPressed['KeyF']&&player.userData.stamina>20&&!blocking){player.userData.stamina-=20;var dist=player.position.distanceTo(opponent.position);if(dist<3){dealDamage(opponent,KICK_DMG);msg('Kick! '+combo+'x combo!',500);}player.userData.punchAnim=0.4;}
 if(input.keysPressed['KeyG']&&player.userData.stamina>30&&!blocking){player.userData.stamina-=30;var dist=player.position.distanceTo(opponent.position);if(dist<3.5){dealDamage(opponent,SPECIAL_DMG);msg('SPECIAL! '+combo+'x combo!',800);player.userData.punchAnim=0.5;}}
-// Blocking reduces damage
 if(blocking){if(player.userData.stamina<100)player.userData.stamina+=5*dt;}
-// Animation
+}
+
+function updatePlayerAnimation(dt){
 if(player.userData.punchAnim>0){player.userData.armR.rotation.x=-Math.PI*player.userData.punchAnim;player.userData.punchAnim-=dt;}else{player.userData.armR.rotation.x=0;}
-// Opponent AI
+}
+
+function processOpponentAI(input,dt){
 var facePlayer=Math.atan2(player.position.x-opponent.position.x,player.position.z-opponent.position.z);opponent.rotation.y=facePlayer;
 opponent.userData.attackTimer-=dt;var oDist=opponent.position.distanceTo(player.position);
 if(oDist>2){var odx=player.position.x-opponent.position.x;var odz=player.position.z-opponent.position.z;opponent.position.x+=odx/oDist*2*dt;opponent.position.z+=odz/oDist*2*dt;opponent.position.x=Math.max(-6,Math.min(6,opponent.position.x));opponent.position.z=Math.max(-6,Math.min(4,opponent.position.z));}
+var blocking=input.keysPressed['ShiftLeft']||input.keysPressed['ShiftRight'];
 if(opponent.userData.attackTimer<=0&&oDist<3&&opponent.userData.stamina>10){opponent.userData.stamina-=10;if(blocking){dealDamage(player,Math.floor(PUNCH_DMG*0.3));}else{dealDamage(player,PUNCH_DMG);}msg(blocking?'Blocked!':'Hit!',500);opponent.userData.attackTimer=0.8+Math.random()*0.5;}
 if(oDist<2.5&&opponent.userData.stamina>20&&Math.random()<0.01){opponent.userData.stamina-=20;if(blocking){dealDamage(player,Math.floor(KICK_DMG*0.3));}else{dealDamage(player,KICK_DMG);}msg(blocking?'Blocked kick!':'Kick!',500);}
 var oDir=new THREE.Vector3(player.position.x-opponent.position.x,0,player.position.z-opponent.position.z);var oDist2=oDir.length();if(oDist2>2){opponent.position.x+=oDir.x/oDist2*2.5*dt;opponent.position.z+=oDir.z/oDist2*2.5*dt;}
-E.camera.position.set(0,4,8);E.camera.lookAt(0,0,0);
-updateHUD();}
+}
+
+function updateCamera(){E.camera.position.set(0,4,8);E.camera.lookAt(0,0,0);}
+
+function checkRoundEnd(){
+if(player.userData.hp<=0){msg('Round '+round+' lost!',2000);if(round>=3){msg('Match lost! Score: '+score,4000);st='ready';setTimeout(function(){if(E)init(E);},3000);}else{round++;playerHP=100;opponentHP=100;player.userData.hp=100;opponent.userData.hp=100;setTimeout(function(){msg('Round '+round+'! FIGHT!',1500);},500);}return true;}
+if(opponent.userData.hp<=0){E.burstParticles(opponent.position,0xff8844,20,4);E.shakeScreen(0.2);score+=500;if(round>=3){msg('CHAMPION! Score: '+score,4000);st='ready';setTimeout(function(){if(E)init(E);},3000);}else{round++;playerHP=100;opponentHP=100;player.userData.hp=100;opponent.userData.hp=100;setTimeout(function(){msg('Round '+round+'! FIGHT!',1500);},500);}return true;}
+return false;
+}
+
+function update(dt,input){if(st==='ready'){if(input.action){st='playing';document.getElementById('rf-ready').style.display='none';msg('FIGHT!',1500);}updateHUD();return;}
+playTime+=dt;if(!player||!opponent)return;
+if(checkRoundEnd())return;
+handlePlayerMovement(input,dt);regenStamina();
+processPlayerAttack(input);updatePlayerAnimation(dt);
+processOpponentAI(input,dt);updateCamera();updateHUD();}
 function render3D(){if(E.renderer&&E.scene&&E.camera)E.renderer.render(E.scene,E.camera);}
 function render2D(ctx){}
 function destroy(){if(hud&&hud.parentNode)hud.parentNode.removeChild(hud);if(arena)E.scene.remove(arena);if(player)E.scene.remove(player);if(opponent)E.scene.remove(opponent);player=null;opponent=null;E=null;THREE=null;}

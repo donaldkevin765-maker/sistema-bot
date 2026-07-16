@@ -33,21 +33,45 @@ function placeTower(pos,type){var tt=TOWER_TYPES[type];var mat=new THREE.MeshSta
 function spawnWave(){wave++;gold+=20*wave;var count=5+wave*2;for(var i=0;i<count;i++){var mat=new THREE.MeshStandardMaterial({color:0xff4444,roughness:0.7});var e=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.4,0.4),mat);var pathPos=Math.random();var a=pathPos*Math.PI*2;e.position.set(Math.cos(a)*12,0.2,Math.sin(a)*12);e.userData={hp:20+wave*5,maxHp:20+wave*5,speed:1+wave*0.1,pathPos:0,goldValue:5+wave};E.scene.add(e);enemies.push(e);}
 document.getElementById('td-wave').textContent=wave;msg('Wave '+wave+'! ('+count+' enemies)',2000);}
 function updateHUD(){document.getElementById('td-gold').textContent=Math.floor(gold);document.getElementById('td-score').textContent=score;document.getElementById('td-lives').textContent=lives;if(st==='ready'){var btn=document.getElementById('td-start');if(btn){var p=0.5+Math.sin(Date.now()*0.003)*0.5;btn.style.transform='scale('+(1+p*0.05)+')';}}}
-function update(dt,input){if(st==='ready'){if(input.action){st='playing';document.getElementById('td-ready').style.display='none';spawnWave();}updateHUD();return;}
-playTime+=dt;if(lives<=0){msg('Outpost fallen! Score: '+score,5000);st='ready';setTimeout(function(){if(E)init(E);},3000);return;}
-// Tower placement
-if(input.action&&input.mouseWorld){var raycaster=new THREE.Raycaster();raycaster.setFromCamera(new THREE.Vector2(0,0),E.camera);var spots=[];level.children.forEach(function(c){if(c.geometry&&c.geometry.type==='CylinderGeometry'&&c.position.y<0.1){spots.push(c);}});var intersects=raycaster.intersectObjects(spots);if(intersects.length>0){var spot=intersects[0].object;if(!spot.userData.occupied&&gold>=TOWER_TYPES[selectedType].cost){spot.userData.occupied=true;gold-=TOWER_TYPES[selectedType].cost;placeTower(spot.position,selectedType);E.playBeep(600,0.1,'sine',0.12);}}}
-// Towers
+function handleReadyState(input){
+if(!input.action)return;
+st='playing';document.getElementById('td-ready').style.display='none';spawnWave();
+}
+
+function checkGameOver(){
+if(lives<=0){msg('Outpost fallen! Score: '+score,5000);st='ready';setTimeout(function(){if(E)init(E);},3000);return true;}
+return false;
+}
+
+function processTowerPlacement(input){
+if(!input.action||!input.mouseWorld)return;
+var raycaster=new THREE.Raycaster();raycaster.setFromCamera(new THREE.Vector2(0,0),E.camera);
+var spotCandidates=[];level.children.forEach(function(c){if(c.geometry&&c.geometry.type==='CylinderGeometry'&&c.position.y<0.1){spotCandidates.push(c);}});
+var intersects=raycaster.intersectObjects(spotCandidates);
+if(intersects.length>0){var spot=intersects[0].object;if(!spot.userData.occupied&&gold>=TOWER_TYPES[selectedType].cost){spot.userData.occupied=true;gold-=TOWER_TYPES[selectedType].cost;placeTower(spot.position,selectedType);E.playBeep(600,0.1,'sine',0.12);}}
+}
+
+function updateTowers(dt){
 for(var ti=0;ti<towers.length;ti++){var t=towers[ti];t.userData.timer-=dt;if(t.userData.timer<=0){var nearest=null,nDist=t.userData.range;for(var ei=0;ei<enemies.length;ei++){var e=enemies[ei];var d=t.position.distanceTo(e.position);if(d<nDist){nDist=d;nearest=e;}}
 if(nearest){t.userData.timer=1/t.userData.rate;var dir=new THREE.Vector3(nearest.position.x-t.position.x,0,nearest.position.z-t.position.z);dir.normalize();var p=new THREE.Mesh(new THREE.SphereGeometry(0.1,4,4),new THREE.MeshBasicMaterial({color:0xffff44}));p.position.copy(t.position);p.position.y+=0.3;p.userData={target:nearest,speed:15,life:2,dmg:t.userData.dmg};E.scene.add(p);projectiles.push(p);E.playBeep(700,0.04,'sine',0.06);}}}
-// Projectiles
+}
+
+function updateProjectiles(dt){
 for(var pi=projectiles.length-1;pi>=0;pi--){var p=projectiles[pi];if(p.userData.target){var dir=new THREE.Vector3(p.userData.target.position.x-p.position.x,0,p.userData.target.position.z-p.position.z);var dist=dir.length();if(dist>0.2){dir.normalize();p.position.x+=dir.x*p.userData.speed*dt;p.position.z+=dir.z*p.userData.speed*dt;}else{p.userData.target.userData.hp-=p.userData.dmg;E.burstParticles(p.userData.target.position,0xff8800,5,2);E.shakeScreen(0.05);E.scene.remove(p);projectiles.splice(pi,1);}}}
-// Enemies
+}
+
+function updateEnemies(dt){
 for(var ei=enemies.length-1;ei>=0;ei--){var e=enemies[ei];e.userData.pathPos+=e.userData.speed*dt*0.3;var angle=e.userData.pathPos*Math.PI*2;e.position.x=Math.cos(angle)*12*(1-e.userData.pathPos*0.02);e.position.z=Math.sin(angle)*12*(1-e.userData.pathPos*0.02);
 if(e.userData.pathPos>12){lives--;E.shakeScreen(0.12);E.scene.remove(e);enemies.splice(ei,1);continue;}
 if(e.userData.hp<=0){gold+=e.userData.goldValue;score+=10*wave;E.burstParticles(e.position,0xff4444,8,3);E.playBeep(300,0.1,'sawtooth',0.1);E.scene.remove(e);enemies.splice(ei,1);}}
 if(enemies.length===0&&st==='playing'){spawnWave();}
-updateHUD();}
+}
+
+function update(dt,input){
+if(st==='ready'){handleReadyState(input);updateHUD();return;}
+playTime+=dt;if(checkGameOver())return;
+processTowerPlacement(input);updateTowers(dt);updateProjectiles(dt);updateEnemies(dt);updateHUD();
+}
 function render3D(){if(E.renderer&&E.scene&&E.camera)E.renderer.render(E.scene,E.camera);}
 function render2D(ctx){}
 function destroy(){if(hud&&hud.parentNode)hud.parentNode.removeChild(hud);if(level)E.scene.remove(level);for(var i=0;i<towers.length;i++)E.scene.remove(towers[i]);for(var ei=0;i<enemies.length;i++)E.scene.remove(enemies[i]);for(var pi=0;i<projectiles.length;i++)E.scene.remove(projectiles[i]);towers=[];enemies=[];projectiles=[];E=null;THREE=null;}

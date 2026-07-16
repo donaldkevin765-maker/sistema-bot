@@ -27,19 +27,31 @@ function buildHUD(){hud=E.createHUD('<div id="dw-hud" style="position:absolute;t
 '<div id="dw-msg" style="position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);font-size:18px;color:#ffdd00;opacity:0;"></div></div>');}
 function msg(t,d){var el=document.getElementById('dw-msg');if(!el)return;el.textContent=t;el.style.opacity=1;setTimeout(function(){el.style.opacity=0;},d||2000);}
 function updateHUD(){document.getElementById('dw-day').textContent=day;document.getElementById('dw-fish').textContent=fishCaught;document.getElementById('dw-score').textContent=score;document.getElementById('dw-cast').style.width=castPower*100+'%';if(st==='ready'){var btn=document.getElementById('dw-start');if(btn){var p=0.5+Math.sin(Date.now()*0.003)*0.5;btn.style.transform='scale('+(1+p*0.05)+')';}}}
-function update(dt,input){if(st==='ready'){if(input.action){st='playing';document.getElementById('dw-ready').style.display='none';msg('Cast your line!',2000);}updateHUD();return;}
-playTime+=dt;if(!player||!bobber)return;
-if(playTime>30){day++;playTime=0;msg('Day '+day+'!',2000);}
-if(!lineActive){if(input.shoot){castPower=Math.min(1,castPower+dt*1.2);}else if(castPower>0){lineActive=true;var dir=new THREE.Vector3(0,0,-1);dir.applyEuler(new THREE.Euler(0,0.3,0));var castPos=player.position.clone().add(dir.multiplyScalar(3+castPower*15));castPos.y=0.2;bobber.position.copy(castPos);bobber.visible=true;castPower=0;E.playBeep(500,0.08,'sine',0.1);fishTimer=2+Math.random()*5;}}else{bobber.position.y=0.15+Math.sin(playTime*3+Date.now())*0.02;
+function handleDayCycle(dt){if(playTime>30){day++;playTime=0;msg('Day '+day+'!',2000);}}
+
+function processCast(input,dt){
+if(!lineActive){if(input.shoot){castPower=Math.min(1,castPower+dt*1.2);}else if(castPower>0){lineActive=true;var dir=new THREE.Vector3(0,0,-1);dir.applyEuler(new THREE.Euler(0,0.3,0));var castPos=player.position.clone().add(dir.multiplyScalar(3+castPower*15));castPos.y=0.2;bobber.position.copy(castPos);bobber.visible=true;castPower=0;E.playBeep(500,0.08,'sine',0.1);fishTimer=2+Math.random()*5;}}
+}
+
+function processFishing(dt,input){
+if(!lineActive)return;
+bobber.position.y=0.15+Math.sin(playTime*3+Date.now())*0.02;
 fishTimer-=dt;if(fishTimer<=0&&!reeling){hasFish=true;reeling=true;E.shakeScreen(0.08);msg('Fish on the line! Click rapidly!',1500);E.playBeep(300,0.1,'sawtooth',0.08);}
 if(reeling&&input.action){reeling=false;hasFish=false;fishCaught++;score+=50+Math.floor(Math.random()*50);lineActive=false;bobber.visible=false;E.burstParticles(bobber.position,0x44aaff,10,2);msg('Fish caught! +'+score,2000);E.playBeep(800,0.15,'sine',0.15);setTimeout(function(){if(!lineActive)msg('Cast again!',1000);},500);}
 if(reeling&&!input.action){var progress=Math.sin(Date.now()*0.01)*0.5+0.5;if(progress>0.8){reeling=false;hasFish=false;msg('Fish got away!',1000);lineActive=false;bobber.visible=false;}}
-if(input.keysPressed['KeyE']&&lineActive){lineActive=false;bobber.visible=false;msg('Line retrieved.',1000);}}
-// Water ripples
+if(input.keysPressed['KeyE']&&lineActive){lineActive=false;bobber.visible=false;msg('Line retrieved.',1000);}
+}
+
+function updateWaterRipples(){
 if(Math.random()<0.02){var r=new THREE.Mesh(new THREE.RingGeometry(0.1,0.2,8),new THREE.MeshBasicMaterial({color:0x88ccff,transparent:true,opacity:0.3}));r.position.set((Math.random()-0.5)*40,0.01,(Math.random()-0.5)*40);r.rotation.x=-Math.PI/2;E.scene.add(r);waterRipples.push(r);}
 for(var ri=waterRipples.length-1;ri>=0;ri--){var r=waterRipples[ri];r.scale.multiplyScalar(1.05);r.material.opacity*=0.95;if(r.material.opacity<0.01){E.scene.remove(r);waterRipples.splice(ri,1);}}
-E.camera.position.set(0,4,27);E.camera.lookAt(0,0,0);
-updateHUD();}
+}
+
+function updateCamera(){E.camera.position.set(0,4,27);E.camera.lookAt(0,0,0);}
+
+function update(dt,input){if(st==='ready'){if(input.action){st='playing';document.getElementById('dw-ready').style.display='none';msg('Cast your line!',2000);}updateHUD();return;}
+playTime+=dt;if(!player||!bobber)return;
+handleDayCycle(dt);processCast(input,dt);processFishing(dt,input);updateWaterRipples();updateCamera();updateHUD();}
 function render3D(){if(E.renderer&&E.scene&&E.camera)E.renderer.render(E.scene,E.camera);}
 function render2D(ctx){}
 function destroy(){if(hud&&hud.parentNode)hud.parentNode.removeChild(hud);if(lake)E.scene.remove(lake);if(player)E.scene.remove(player);if(bobber)E.scene.remove(bobber);for(var i=0;i<waterRipples.length;i++)E.scene.remove(waterRipples[i]);player=null;bobber=null;waterRipples=[];E=null;THREE=null;}

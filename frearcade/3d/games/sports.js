@@ -27,24 +27,56 @@ function buildHUD(){hud=E.createHUD('<div id="sz-hud" style="position:absolute;t
 '<div id="sz-msg" style="position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);font-size:20px;color:#ffdd00;opacity:0;"></div></div>');}
 function msg(t,d){var el=document.getElementById('sz-msg');if(!el)return;el.textContent=t;el.style.opacity=1;setTimeout(function(){el.style.opacity=0;},d||2000);}
 function throwBall(from,dir,speed,isEnemy){var ball=new THREE.Mesh(new THREE.SphereGeometry(0.2,8,8),new THREE.MeshBasicMaterial({color:isEnemy?0xff4444:0x44ff88}));ball.position.copy(from);ball.userData={dir:dir.clone(),speed:speed||12,life:3,isEnemy:isEnemy};E.scene.add(ball);balls.push(ball);return ball;}
-function updateHUD(){document.getElementById('sz-hp').textContent=Math.max(0,myHP);document.getElementById('sz-score').textContent=score;document.getElementById('sz-round').textContent=round;document.getElementById('sz-charge').textContent=Math.round(charge*100);if(st==='ready'){var btn=document.getElementById('sz-start');if(btn){var p=0.5+Math.sin(Date.now()*0.003)*0.5;btn.style.transform='scale('+(1+p*0.05)+')';}}}
-function update(dt,input){if(st==='ready'){if(input.action){st='playing';document.getElementById('sz-ready').style.display='none';msg('Round 1! Dodge, charge, and strike!',2000);}updateHUD();return;}
-playTime+=dt;if(!player||myHP<=0){updateHUD();if(input.action){myHP=3;score=0;round=1;spawnEnemies();}return;}
+
+function handleReadyState(input){
+if(!input.action)return;
+st='playing';document.getElementById('sz-ready').style.display='none';msg('Round 1! Dodge, charge, and strike!',2000);
+}
+
+function handleDeathState(input){
+updateHUD();if(input.action){myHP=3;score=0;round=1;spawnEnemies();}
+}
+
+function processMovement(dt,input){
+if(!player)return;
 var dx=0,dz=0;if(input.left)dx-=1;if(input.right)dx+=1;if(input.up)dz-=1;if(input.down)dz+=1;if(dx!==0&&dz!==0){dx*=0.707;dz*=0.707;}
 var wdx=dx*Math.cos(player.yaw)-dz*Math.sin(player.yaw);var wdz=dx*Math.sin(player.yaw)+dz*Math.cos(player.yaw);
 player.group.position.x+=wdx*player.speed*dt;player.group.position.z+=wdz*player.speed*dt;
 var maxR=12;var dist=Math.sqrt(player.group.position.x*player.group.position.x+player.group.position.z*player.group.position.z);if(dist>maxR){player.group.position.x*=maxR/dist;player.group.position.z*=maxR/dist;}
-if(input.shoot){charge=Math.min(1,charge+dt*2);}else if(charge>0){if(enemies.length>0){var nearestE=enemies[0],nearestDist=100;for(var eti=0;eti<enemies.length;eti++){var d=enemies[eti].position.distanceTo(player.group.position);if(d<nearestDist){nearestDist=d;nearestE=enemies[eti];}}var dir=new THREE.Vector3(nearestE.position.x-player.group.position.x,0,nearestE.position.z-player.group.position.z);dir.normalize();dir.y=0.1+charge*0.3;throwBall(player.group.position.clone().add(new THREE.Vector3(0,0.8,0)),dir,8+charge*8,false);E.playBeep(500+charge*300,0.1,'sine',0.15);}charge=0;}
+if(dx!==0||dz!==0)player.group.rotation.y=Math.atan2(wdx,wdz);
 if(input.pointerLocked)player.yaw-=input.mouseDeltaX*0.003;
+}
+
+function processChargeThrow(input,dt){
+if(!player)return;
+if(input.shoot){charge=Math.min(1,charge+dt*2);}else if(charge>0){
+if(enemies.length>0){var nearestE=enemies[0],nearestDist=100;for(var eti=0;eti<enemies.length;eti++){var d=enemies[eti].position.distanceTo(player.group.position);if(d<nearestDist){nearestDist=d;nearestE=enemies[eti];}}
+var dir=new THREE.Vector3(nearestE.position.x-player.group.position.x,0,nearestE.position.z-player.group.position.z);dir.normalize();dir.y=0.1+charge*0.3;
+throwBall(player.group.position.clone().add(new THREE.Vector3(0,0.8,0)),dir,8+charge*8,false);E.playBeep(500+charge*300,0.1,'sine',0.15);}charge=0;}
+}
+
+function updateBalls(dt){
 for(var bi=balls.length-1;bi>=0;bi--){var b=balls[bi];b.position.x+=b.userData.dir.x*b.userData.speed*dt;b.position.y+=b.userData.dir.y*b.userData.speed*dt;b.position.z+=b.userData.dir.z*b.userData.speed*dt;b.userData.life-=dt;
 b.position.y-=5*dt;
 if(b.userData.life<=0||Math.abs(b.position.x)>15||Math.abs(b.position.z)>15||b.position.y<0){E.scene.remove(b);balls.splice(bi,1);continue;}
 if(b.userData.isEnemy){if(b.position.distanceTo(player.group.position)<0.8){myHP--;E.shakeScreen(0.15);E.playBeep(150,0.15,'sawtooth',0.15);E.scene.remove(b);balls.splice(bi,1);if(myHP<=0){msg('Game Over!',3000);st='ready';setTimeout(function(){if(E)init(E);},2000);}}continue;}
 for(var hi=0;hi<enemies.length;hi++){var e=enemies[hi];if(b.position.distanceTo(e.position)<0.8){e.userData.hp--;E.burstParticles(b.position,0x44ff88,6,2);E.shakeScreen(0.08);e.material.color.setHex(0xffffff);var col=e.material.color.getHex();setTimeout(function(m,c){m.color.setHex(c);},100,e.material,col);E.scene.remove(b);balls.splice(bi,1);if(e.userData.hp<=0){E.burstParticles(e.position,0xff4444,12,3);E.scene.remove(e);enemies.splice(hi,1);score+=100;E.playBeep(800,0.1,'sine',0.15);if(enemies.length===0){round++;score+=200;spawnEnemies();msg('Round '+round+'!',2000);}}break;}}}
-if(dx!==0||dz!==0)player.group.rotation.y=Math.atan2(wdx,wdz);
+}
+
+function updateEnemyAI(dt){
 for(var ei=enemies.length-1;ei>=0;ei--){var e=enemies[ei];e.userData.throwTimer-=dt;var toPlayer=new THREE.Vector3(player.group.position.x-e.position.x,0,player.group.position.z-e.position.z);var eDist=toPlayer.length();if(eDist>3){toPlayer.normalize();e.position.x+=toPlayer.x*e.userData.speed*dt;e.position.z+=toPlayer.z*e.userData.speed*dt;e.rotation.y=Math.atan2(toPlayer.x,toPlayer.z);}
 if(e.userData.throwTimer<=0&&eDist<12){var dir=new THREE.Vector3(player.group.position.x-e.position.x,0.3,player.group.position.z-e.position.z);dir.normalize();throwBall(e.position.clone().add(new THREE.Vector3(0,0.6,0)),dir,6+round,true);e.userData.throwTimer=1.5+Math.random()*2;}}
-updateCamera(dt);updateHUD();}
+}
+
+function update(dt,input){
+if(st==='ready'){handleReadyState(input);updateHUD();return;}
+playTime+=dt;if(!player||myHP<=0){handleDeathState(input);return;}
+processMovement(dt,input);
+processChargeThrow(input,dt);
+updateBalls(dt);
+updateEnemyAI(dt);
+updateCamera(dt);updateHUD();
+}
 function render3D(){if(E.renderer&&E.scene&&E.camera)E.renderer.render(E.scene,E.camera);}
 function render2D(ctx){}
 function destroy(){if(hud&&hud.parentNode)hud.parentNode.removeChild(hud);if(player&&player.group)E.scene.remove(player.group);if(camPivot)E.scene.remove(camPivot);if(arena)E.scene.remove(arena);for(var i=0;i<balls.length;i++)E.scene.remove(balls[i]);for(var ei=0;ei<enemies.length;ei++)E.scene.remove(enemies[ei]);balls=[];enemies=[];E=null;THREE=null;}

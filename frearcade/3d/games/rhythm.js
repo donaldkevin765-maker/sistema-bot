@@ -33,17 +33,35 @@ if(combo>maxCombo)maxCombo=combo;
 best.scale.set(1.5,1.5,1.5);var nn=best;setTimeout(function(){E.scene.remove(nn);},200);
 var idx=notes.indexOf(best);if(idx>-1)notes.splice(idx,1);}else{combo=0;E.playBeep(100,0.1,'sawtooth',0.1);}}
 function updateHUD(){document.getElementById('bc-score').textContent=score;document.getElementById('bc-combo').textContent=combo;document.getElementById('bc-maxcombo').textContent=maxCombo;if(st==='ready'){var btn=document.getElementById('bc-start');if(btn){var p=0.5+Math.sin(Date.now()*0.003)*0.5;btn.style.transform='scale('+(1+p*0.05)+')';}}}
-function update(dt,input){if(st==='ready'){if(input.action){st='playing';document.getElementById('bc-ready').style.display='none';}updateHUD();return;}
-playTime+=dt;
+function handleReadyState(input){
+if(!input.action)return;
+st='playing';document.getElementById('bc-ready').style.display='none';
+}
+
+function processBeat(dt){
 if(nextBeat<=0){spawnNote();nextBeat=beatInterval*2;}
 nextBeat-=dt;
-var keys=['Digit1','Digit2','Digit3','Digit4'];for(var ki=0;ki<keys.length;ki++){if(input.keysPressed[keys[ki]]){hitNote(ki);}}
+}
+
+function processInput(input){
+var keys=['Digit1','Digit2','Digit3','Digit4'];
+for(var ki=0;ki<keys.length;ki++){if(input.keysPressed[keys[ki]]){hitNote(ki);}}
+}
+
+function updateNotes(dt){
 for(var ni=notes.length-1;ni>=0;ni--){var n=notes[ni];n.position.z-=n.userData.speed*dt;
 if(n.position.z<-5){if(!n.userData.hit){combo=0;}E.scene.remove(n);notes.splice(ni,1);}
 var p=1-Math.abs(n.position.z-n.userData.targetZ)/15;n.material.emissiveIntensity=0.3+p*0.5;}
-// Camera bob
+}
+
+function updateCamera(dt){
 var bob=Math.sin(playTime*8)*0.02;E.camera.position.set(0,2+bob,6);E.camera.lookAt(0,0,2);
-updateHUD();}
+}
+
+function update(dt,input){
+if(st==='ready'){handleReadyState(input);updateHUD();return;}
+playTime+=dt;processBeat(dt);processInput(input);updateNotes(dt);updateCamera(dt);updateHUD();
+}
 function render3D(){if(E.renderer&&E.scene&&E.camera)E.renderer.render(E.scene,E.camera);}
 function render2D(ctx){}
 function destroy(){if(hud&&hud.parentNode)hud.parentNode.removeChild(hud);if(stage)E.scene.remove(stage);for(var i=0;i<notes.length;i++)E.scene.remove(notes[i]);notes=[];E=null;THREE=null;}
