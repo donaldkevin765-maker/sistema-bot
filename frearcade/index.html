@@ -194,62 +194,61 @@ else cards[i].style.display='none';
 
 function showLoading(on){var l=document.getElementById('loading');if(on)l.classList.add('active');else l.classList.remove('active');}
 
-function showMenu(noAnim){
+function destroyCurrentGame(){
 if(CURRENT_GAME){try{if(gameInstances.destroy)gameInstances.destroy();}catch(e){}
 if(window.FreeArcade&&window.FreeArcade.stopLoop)window.FreeArcade.stopLoop();try{if(window.FreeArcade3D&&window.FreeArcade3D.destroy)window.FreeArcade3D.destroy();}catch(e){}}
 CURRENT_GAME=null;gameInstances={};
+}
+
+function showMenu(noAnim){
+destroyCurrentGame();
 gameContainer.style.display='none';gameContainer.innerHTML='';
 backBtn.style.display='none';showLoading(false);
 menuEl.classList.remove('hidden');headerEl.style.display='';
 if(!noAnim){menuEl.style.opacity='0';requestAnimationFrame(function(){menuEl.style.opacity='1';});}
 }
 
-function launchGame(game){
-showLoading(true);menuEl.classList.add('hidden');headerEl.style.display='none';
-setTimeout(function(){
-gameContainer.style.display='';backBtn.style.display='';
-gameContainer.style.opacity='0';
-
-var container=gameContainer;
+function createCanvas(container){
 container.innerHTML='';
 var canvas=document.createElement('canvas');
 canvas.width=container.clientWidth||1024;
 canvas.height=container.clientHeight||768;
 container.appendChild(canvas);
-
-CURRENT_GAME=game;
-var ctx=canvas.getContext('2d');
-var gameObj=window[game.ns]||window[game.name.replace(/ /g,'')];
-if(!gameObj){showLoading(false);container.innerHTML='<div style="color:red;padding:20px;">Error: Game "'+game.name+'" not found.</div>';return;}
-
-// Load ContentDB data for this game
-var gameId=game.ns?game.ns.charAt(0).toLowerCase()+game.ns.slice(1).replace(/[A-Z]/g,function(c){return'-'+c.toLowerCase()}):'';
-try{var gameData=window.loadGameData?window.loadGameData(gameId):null;if(gameData)window.__gameData=gameData;else{window.__gameData={weapons:[],enemies:[],levels:[],quests:[],lore:[],skills:[],achievements:[],crafting:[],consumables:[]};console.log('['+game.name+'] No data loaded');}}catch(e){console.warn('['+game.name+'] Data load error:',e);window.__gameData={weapons:[],enemies:[],levels:[],quests:[],lore:[],skills:[],achievements:[],crafting:[],consumables:[]};}
-
-if(game.dim==='3D'){
-// 3D game: use engine3d
-if(!window.FreeArcade3D){
-container.innerHTML='<div style="color:red;padding:20px;">3D Engine not loaded.</div>';return;
+return canvas;
 }
+
+function findGame(game){
+return window[game.ns]||window[game.name.replace(/ /g,'')];
+}
+
+function loadGameData(game){
+var gameId=game.ns?game.ns.charAt(0).toLowerCase()+game.ns.slice(1).replace(/[A-Z]/g,function(c){return'-'+c.toLowerCase()}):'';
+try{
+var gameData=window.loadGameData?window.loadGameData(gameId):null;
+if(gameData)window.__gameData=gameData;
+else{window.__gameData={weapons:[],enemies:[],levels:[],quests:[],lore:[],skills:[],achievements:[],crafting:[],consumables:[]};console.log('['+game.name+'] No data loaded');}
+}catch(e){console.warn('['+game.name+'] Data load error:',e);window.__gameData={weapons:[],enemies:[],levels:[],quests:[],lore:[],skills:[],achievements:[],crafting:[],consumables:[]};}
+}
+
+function run3DGame(game,gameObj,canvas){
+if(!window.FreeArcade3D){gameContainer.innerHTML='<div style="color:red;padding:20px;">3D Engine not loaded.</div>';return;}
 try{
 var engine3d=window.FreeArcade3D;
 engine3d.gameData=window.__gameData||{};
 engine3d.init(canvas);
 gameObj.init(engine3d);
 gameInstances=gameObj;
-
 function loop3D(){if(CURRENT_GAME!==game)return;
 var input=engine3d.input||{};
 gameObj.update(1/60,input);
 gameObj.render3D();
 requestAnimationFrame(loop3D);}
 loop3D();
-}catch(e){container.innerHTML='<div style="color:red;padding:20px;">3D Error: '+e.message+'</div>';}
-}else{
-// 2D game: use engine
-if(!window.FreeArcade){
-container.innerHTML='<div style="color:red;padding:20px;">2D Engine not loaded.</div>';return;
+}catch(e){gameContainer.innerHTML='<div style="color:red;padding:20px;">3D Error: '+e.message+'</div>';}
 }
+
+function run2DGame(game,gameObj,canvas,ctx){
+if(!window.FreeArcade){gameContainer.innerHTML='<div style="color:red;padding:20px;">2D Engine not loaded.</div>';return;}
 try{
 var engine=window.FreeArcade;
 engine.width=canvas.width;engine.height=canvas.height;
@@ -257,7 +256,6 @@ engine.ctx=ctx;engine.canvas=canvas;
 engine.gameData=window.__gameData||{};
 gameObj.init(engine);
 gameInstances=gameObj;
-
 var lastTime=performance.now();
 function loop2D(time){if(CURRENT_GAME!==game)return;
 var dt=Math.min((time-lastTime)/1000,0.05);lastTime=time;
@@ -266,8 +264,22 @@ gameObj.update(dt,input);
 if(gameObj.render)gameObj.render(dt);else engine.renderFrame();
 requestAnimationFrame(loop2D);}
 loop2D(lastTime);
-}catch(e){container.innerHTML='<div style="color:red;padding:20px;">2D Error: '+e.message+'</div>';}
+}catch(e){gameContainer.innerHTML='<div style="color:red;padding:20px;">2D Error: '+e.message+'</div>';}
 }
+
+function launchGame(game){
+showLoading(true);menuEl.classList.add('hidden');headerEl.style.display='none';
+setTimeout(function(){
+gameContainer.style.display='';backBtn.style.display='';
+gameContainer.style.opacity='0';
+var canvas=createCanvas(gameContainer);
+CURRENT_GAME=game;
+var ctx=canvas.getContext('2d');
+var gameObj=findGame(game);
+if(!gameObj){showLoading(false);gameContainer.innerHTML='<div style="color:red;padding:20px;">Error: Game "'+game.name+'" not found.</div>';return;}
+loadGameData(game);
+if(game.dim==='3D'){run3DGame(game,gameObj,canvas);
+}else{run2DGame(game,gameObj,canvas,ctx);}
 showLoading(false);requestAnimationFrame(function(){gameContainer.style.opacity='1';});
 },300);}
 

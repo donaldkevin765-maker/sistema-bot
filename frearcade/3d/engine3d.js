@@ -837,34 +837,37 @@
   // GAME LIFECYCLE
   // ──────────────────────────────────────────────
 
-  function loadGame(gameModule) {
-    // Destroy previous game
-    if (currentGame && currentGame.destroy) {
-      try { currentGame.destroy(); } catch (e) { console.warn('Game destroy error:', e); }
-    }
-
-    // Reset ECS
-    clearEntities();
-
-    // Clear particles
-    for (var i = particleSystems.length - 1; i >= 0; i--) {
-      destroyParticleSystem(particleSystems[i]);
-    }
-
-    // Clear HUD
-    clearHUD();
-
-    // Reset input
-    keys = {};
-    keysJustPressed = {};
-    _prevKeys = {};
-    mouseDeltaX = 0;
-    mouseDeltaY = 0;
+  function resetInputState() {
+    keys = {}; keysJustPressed = {}; _prevKeys = {};
+    mouseDeltaX = 0; mouseDeltaY = 0;
     mouseButtons = { left: false, middle: false, right: false };
     mousePressed = { left: false, middle: false, right: false };
     _prevMouseButtons = { left: false, middle: false, right: false };
     touchData = [];
+  }
 
+  function clearParticles() {
+    for (var i = particleSystems.length - 1; i >= 0; i--) {
+      destroyParticleSystem(particleSystems[i]);
+    }
+  }
+
+  function destroyCurrentGame() {
+    if (currentGame && currentGame.destroy) {
+      try { currentGame.destroy(); } catch (e) { console.warn('Game destroy error:', e); }
+    }
+  }
+
+  function resetEngineState() {
+    destroyCurrentGame();
+    clearEntities();
+    clearParticles();
+    clearHUD();
+    resetInputState();
+  }
+
+  function loadGame(gameModule) {
+    resetEngineState();
     currentGame = gameModule;
     if (gameModule && gameModule.init) {
       gameModule.engine = engineAPI;
@@ -889,33 +892,15 @@
     }
   }
 
-  function loop(now) {
-    if (!running) return;
-    animFrameId = requestAnimationFrame(loop);
-
-    var dt = Math.min((now - lastTime) / 1000, CONFIG.MAX_DELTA);
-    lastTime = now;
-
-    // Pause toggle (P key)
+  function handlePauseToggle(dt) {
     pauseCooldown -= dt;
     if (keysJustPressed['KeyP'] && pauseCooldown <= 0) {
       paused = !paused;
       pauseCooldown = 0.3;
     }
+  }
 
-    // Build input frame
-    var input = buildInput();
-
-    // Clear
-    renderer.clear();
-
-    // Update plugins
-    updatePlugins(dt);
-
-    // Update particles
-    updateParticles(dt);
-
-    // Screen shake
+  function applyScreenShake(dt) {
     if (shakeIntensity > 0.001 && shakeOffset) {
       shakeOffset.set(
         (Math.random() - 0.5) * shakeIntensity * 0.5,
@@ -926,29 +911,23 @@
       shakeIntensity *= Math.max(0, 1 - shakeDecay * dt);
       if (shakeIntensity < 0.001) shakeIntensity = 0;
     }
+  }
 
-    // Update game
-    if (currentGame && currentGame.update && !paused) {
-      currentGame.update(dt, input);
-    }
-
-    // Render 3D scene
+  function renderGame(dt) {
     if (currentGame && currentGame.render3D) {
       currentGame.render3D(dt);
     } else {
       renderer.render(scene, camera);
     }
-
-    // Render 2D overlay
     if (currentGame && currentGame.render2D) {
       ctx2d.save();
       ctx2d.clearRect(0, 0, W, H);
-      // Make background transparent for overlay rendering
       currentGame.render2D(ctx2d);
       ctx2d.restore();
     }
+  }
 
-    // Reset per-frame input
+  function resetFrameInput() {
     keysJustPressed = {};
     for (var k in keys) {
       if (!keys[k]) delete keys[k];
@@ -962,6 +941,28 @@
     mousePressed = { left: false, middle: false, right: false };
     _prevMouseButtons = { left: mouseButtons.left, middle: mouseButtons.middle, right: mouseButtons.right };
     touchData = [];
+  }
+
+  function loop(now) {
+    if (!running) return;
+    animFrameId = requestAnimationFrame(loop);
+
+    var dt = Math.min((now - lastTime) / 1000, CONFIG.MAX_DELTA);
+    lastTime = now;
+
+    handlePauseToggle(dt);
+    var input = buildInput();
+    renderer.clear();
+    updatePlugins(dt);
+    updateParticles(dt);
+    applyScreenShake(dt);
+
+    if (currentGame && currentGame.update && !paused) {
+      currentGame.update(dt, input);
+    }
+
+    renderGame(dt);
+    resetFrameInput();
   }
 
   // ──────────────────────────────────────────────
@@ -981,22 +982,17 @@
 
   function destroy() {
     stopLoop();
-    if (currentGame && currentGame.destroy) {
-      try { currentGame.destroy(); } catch (e) { console.warn('Game destroy error:', e); }
-    }
+    destroyCurrentGame();
     destroyPlugins();
     clearEntities();
+    clearParticles();
     clearHUD();
-    for (var i = particleSystems.length - 1; i >= 0; i--) {
-      destroyParticleSystem(particleSystems[i]);
-    }
     if (renderer) {
       renderer.dispose();
       renderer = null;
     }
     document.removeEventListener('keydown', onKeyDown);
     document.removeEventListener('keyup', onKeyUp);
-    // Note: cleanup all listeners for a complete destroy
     scene = null;
     camera = null;
     THREE = null;
