@@ -415,6 +415,7 @@ window.FreeArcade = window.FreeArcadeEngine = (function () {
       currentGame = gameModule;
       gameModule.engine = {
         W: W, H: H,
+        ctx: ctx,
         clear: clear,
         rect: rect,
         rectStroke: rectStroke,
@@ -559,9 +560,9 @@ window.FreeArcade = window.FreeArcadeEngine = (function () {
 
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('keyup', onKeyUp);
-    canvas.addEventListener('touchstart', onTouchStart, { passive: false });
-    canvas.addEventListener('touchend', onTouchEnd, { passive: false });
-    canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchstart', onTouchStart, { passive: false });
+    document.addEventListener('touchend', onTouchEnd, { passive: false });
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
     _listenersAttached = true;
 
     // Pre-warm audio context (will be suspended, resumed on first gesture)
@@ -573,11 +574,9 @@ window.FreeArcade = window.FreeArcadeEngine = (function () {
     if (_listenersAttached) {
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('keyup', onKeyUp);
-      if (canvas) {
-        canvas.removeEventListener('touchstart', onTouchStart);
-        canvas.removeEventListener('touchend', onTouchEnd);
-        canvas.removeEventListener('touchmove', onTouchMove);
-      }
+      document.removeEventListener('touchstart', onTouchStart);
+      document.removeEventListener('touchend', onTouchEnd);
+      document.removeEventListener('touchmove', onTouchMove);
       _listenersAttached = false;
     }
     if (currentGame && currentGame.destroy) {

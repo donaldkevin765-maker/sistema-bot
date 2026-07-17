@@ -249,20 +249,11 @@ loop3D();
 function run2DGame(game,gameObj,canvas,ctx){
 if(!window.FreeArcadeEngine){gameContainer.innerHTML='<div style="color:red;padding:20px;">2D Engine not loaded.</div>';return;}
 try{
+canvas.id='canvas';
 var engine=window.FreeArcadeEngine;
-engine.width=canvas.width;engine.height=canvas.height;
-engine.ctx=ctx;engine.canvas=canvas;
-engine.gameData=window.__gameData||{};
-gameObj.init(engine);
+engine.init('canvas');
+engine.loadGame(gameObj);
 gameInstances=gameObj;
-var lastTime=performance.now();
-function loop2D(time){if(CURRENT_GAME!==game)return;
-var dt=Math.min((time-lastTime)/1000,0.05);lastTime=time;
-var input=engine.input||{};
-gameObj.update(dt,input);
-if(gameObj.render)gameObj.render(dt);else engine.renderFrame();
-requestAnimationFrame(loop2D);}
-loop2D(lastTime);
 }catch(e){gameContainer.innerHTML='<div style="color:red;padding:20px;">2D Error: '+e.message+'</div>';}
 }
 
