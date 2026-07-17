@@ -8,7 +8,7 @@
  *  - Audio context resumed on first user gesture (Chrome autoplay policy)
  *  - Canvas cleared per frame, no stacking or stale pixels
  */
-window.FreeArcadeEngine = (function () {
+window.FreeArcade = window.FreeArcadeEngine = (function () {
   'use strict';
 
   var canvas, ctx, W, H;

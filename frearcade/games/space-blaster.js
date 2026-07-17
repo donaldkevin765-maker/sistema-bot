@@ -742,6 +742,9 @@
     init: init,
     update: update,
     render: render,
-    destroy: destroy
+    destroy: destroy,
+    name: 'Space Blaster',
+    description: 'Infinite side-scrolling space shooter with permanent upgrades',
+    genre: 'space-shooter',
   };
 })();

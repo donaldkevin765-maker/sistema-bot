@@ -493,6 +493,9 @@
     init: init,
     update: update,
     render: render,
-    destroy: destroy
+    destroy: destroy,
+    name: 'Snake Evolved',
+    description: 'Classic snake with power-ups, obstacles, and speed ramp',
+    genre: 'snake',
   };
 })();

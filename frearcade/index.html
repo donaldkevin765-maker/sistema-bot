@@ -195,7 +195,7 @@ function showLoading(on){var l=document.getElementById('loading');if(on)l.classL
 
 function destroyCurrentGame(){
 if(CURRENT_GAME){try{if(gameInstances.destroy)gameInstances.destroy();}catch(e){}
-if(window.FreeArcade&&window.FreeArcade.stopLoop)window.FreeArcade.stopLoop();try{if(window.FreeArcade3D&&window.FreeArcade3D.destroy)window.FreeArcade3D.destroy();}catch(e){}}
+if(window.FreeArcadeEngine&&window.FreeArcadeEngine.stopLoop)window.FreeArcadeEngine.stopLoop();try{if(window.FreeArcade3D&&window.FreeArcade3D.destroy)window.FreeArcade3D.destroy();}catch(e){}}
 CURRENT_GAME=null;gameInstances={};
 }
 
@@ -247,9 +247,9 @@ loop3D();
 }
 
 function run2DGame(game,gameObj,canvas,ctx){
-if(!window.FreeArcade){gameContainer.innerHTML='<div style="color:red;padding:20px;">2D Engine not loaded.</div>';return;}
+if(!window.FreeArcadeEngine){gameContainer.innerHTML='<div style="color:red;padding:20px;">2D Engine not loaded.</div>';return;}
 try{
-var engine=window.FreeArcade;
+var engine=window.FreeArcadeEngine;
 engine.width=canvas.width;engine.height=canvas.height;
 engine.ctx=ctx;engine.canvas=canvas;
 engine.gameData=window.__gameData||{};

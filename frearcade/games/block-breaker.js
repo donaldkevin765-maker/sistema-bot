@@ -613,6 +613,9 @@
     init: init,
     update: update,
     render: render,
-    destroy: destroy
+    destroy: destroy,
+    name: 'Block Breaker',
+    description: 'Breakout-style brick breaker with power-ups and levels',
+    genre: 'paddle',
   };
 })();

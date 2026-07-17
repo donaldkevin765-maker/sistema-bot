@@ -398,6 +398,9 @@
   function destroy() {}
 
   window.MazeRunner = {
-    init: init, update: update, render: render, destroy: destroy
+    init: init, update: update, render: render, destroy: destroy,
+    name: 'Maze Runner',
+    description: 'Navigate procedurally generated mazes, avoid traps',
+    genre: 'maze',
   };
 })();
