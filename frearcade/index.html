@@ -380,7 +380,7 @@ for(var i=0;i<GAMES.length;i++){
 var g=GAMES[i];
 var dimClass=g.dim==='3D'?'d3':'d2';
 var dimLabel=g.dim||'2D';
-var cover=COVERS[g.ns]||'radial-gradient(ellipse at 50% 50%,#0f0f2a,#0a0a1a)';
+var cover=gameCover(g.ns);
 html+='<div class="game-card '+dimClass+'" data-genre="'+g.genre+'" onclick="launchGame(GAMES['+i+'])">'+
 '<div class="cover" style="background:'+cover+'"></div>'+
 '<div class="overlay"></div>'+
