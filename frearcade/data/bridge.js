@@ -21,7 +21,8 @@
  * DataBridge.filter(E, 'weapons', {tier:'rare'})  → filtered
  */
 (function(){'use strict';
-var root=this;
+var root=window;
+
 var DataBridge={
   version:'1.0.0',
 

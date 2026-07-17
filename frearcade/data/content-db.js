@@ -15,7 +15,7 @@
  */
 
 (function(){'use strict';
-var root=this;
+var root=window;
 var ContentDB={
   version:'1.0.0',
   tables:{},

@@ -13,7 +13,7 @@
  */
 
 (function(){'use strict';
-var root=this;
+var root=window;
 
 var DATA_CACHE={};
 
