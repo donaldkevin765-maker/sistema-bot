@@ -415,6 +415,7 @@ window.FreeArcade = window.FreeArcadeEngine = (function () {
       currentGame = gameModule;
       gameModule.engine = {
         W: W, H: H,
+        width: canvas.width, height: canvas.height,
         ctx: ctx,
         clear: clear,
         rect: rect,
@@ -456,8 +457,9 @@ window.FreeArcade = window.FreeArcadeEngine = (function () {
         isHitstop: isHitstop,
         getHitstopFactor: getHitstopFactor,
         getJoysticks: getJoysticks,
+        emit: function () {},
       };
-      gameModule.init();
+      gameModule.init(gameModule.engine);
     }
     startLoop();
   }
