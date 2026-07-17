@@ -92,40 +92,11 @@ function registerGame(name,game){GAMES.push(game);}
 
 // ====== 2D GAMES ======
 </script>
-<!-- Data Framework -->
+<!-- Data Framework (loaded on demand per game) -->
 <script src="data/content-db.js"></script>
 <script src="data/procgen.js"></script>
 <script src="data/data-loader.js"></script>
 <script src="data/bridge.js"></script>
-<!-- Game Data Bundles (28 games × 10 content tables each = ~1.5M lines) -->
-<script src="data/games/space-blaster-data.js"></script>
-<script src="data/games/block-breaker-data.js"></script>
-<script src="data/games/maze-runner-data.js"></script>
-<script src="data/games/snake-evolved-data.js"></script>
-<script src="data/games/arena-shooter-data.js"></script>
-<script src="data/games/rungun-data.js"></script>
-<script src="data/games/fortress-data.js"></script>
-<script src="data/games/twin-stick-data.js"></script>
-<script src="data/games/multiplayer-data.js"></script>
-<script src="data/games/fps-data.js"></script>
-<script src="data/games/racing-data.js"></script>
-<script src="data/games/survival-data.js"></script>
-<script src="data/games/rpg-data.js"></script>
-<script src="data/games/mech-data.js"></script>
-<script src="data/games/battle-royale-data.js"></script>
-<script src="data/games/platformer-data.js"></script>
-<script src="data/games/stealth-data.js"></script>
-<script src="data/games/strategy-data.js"></script>
-<script src="data/games/sports-data.js"></script>
-<script src="data/games/puzzle-data.js"></script>
-<script src="data/games/horror-data.js"></script>
-<script src="data/games/rhythm-data.js"></script>
-<script src="data/games/flying-data.js"></script>
-<script src="data/games/tower-defense-data.js"></script>
-<script src="data/games/fighting-data.js"></script>
-<script src="data/games/golf-data.js"></script>
-<script src="data/games/fishing-data.js"></script>
-<script src="data/games/idle-data.js"></script>
 <!-- 2D Games -->
 <script src="games/engine.js"></script>
 <script src="games/save.js"></script>
@@ -223,6 +194,7 @@ return window[game.ns]||window[game.name.replace(/ /g,'')];
 function loadGameData(game){
 var gameId=game.ns?game.ns.charAt(0).toLowerCase()+game.ns.slice(1).replace(/[A-Z]/g,function(c){return'-'+c.toLowerCase()}):'';
 try{
+if(window.ContentDB&&window.ContentDB.tables&&!window.ContentDB.tables[gameId+'_weapons']){var s=document.createElement('script');s.src='data/games/'+gameId+'-data.js';s.async=true;document.head.appendChild(s);}
 var gameData=window.loadGameData?window.loadGameData(gameId):null;
 if(gameData)window.__gameData=gameData;
 else{window.__gameData={weapons:[],enemies:[],levels:[],quests:[],lore:[],skills:[],achievements:[],crafting:[],consumables:[]};console.log('['+game.name+'] No data loaded');}
