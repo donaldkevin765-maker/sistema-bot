@@ -56,9 +56,8 @@ if(Math.abs(cn.x-player.x)<20&&Math.abs(cn.y-player.y)<20){coinsCollected++;scor
 // Particles
 for(var pi2=particles.length-1;pi2>=0;pi2--){var p2=particles[pi2];p2.x+=p2.dx;p2.y+=p2.dy;p2.life-=dt;p2.dy+=0.3;if(p2.life<=0)particles.splice(pi2,1);}
 // Level complete
-if(scrollX>=LEVEL_LENGTH&&enemies.length===0){state='ready';score+=1000;if(coinsCollected>0)score+=coinsCollected*50;render(dt);}
-render(dt);}
-function render(dt){if(!E||!E.ctx)return;var ctx=E.ctx;
+if(scrollX>=LEVEL_LENGTH&&enemies.length===0){state='ready';score+=1000;if(coinsCollected>0)score+=coinsCollected*50;}}
+function render(ctx){if(!E||!ctx)return;
 ctx.clearRect(0,0,gameWidth,gameHeight);
 var grad=ctx.createLinearGradient(0,0,0,gameHeight);grad.addColorStop(0,'#0a0a2a');grad.addColorStop(1,'#1a1a3a');ctx.fillStyle=grad;ctx.fillRect(0,0,gameWidth,gameHeight);
 // Stars

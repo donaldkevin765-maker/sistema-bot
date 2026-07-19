@@ -45,9 +45,8 @@ if(Math.abs(pu.x-player.x)<20&&Math.abs(pu.y-player.y)<20){if(pu.type==='health'
 // Particles
 for(var pi2=particles.length-1;pi2>=0;pi2--){var p2=particles[pi2];p2.x+=p2.dx;p2.y+=p2.dy;p2.life-=dt;p2.dy+=0.2;if(p2.life<=0)particles.splice(pi2,1);}
 comboTimer-=dt;if(comboTimer<=0)comboCount=0;
-if(enemiesKilled>=waveEnemies&&enemies.length===0){waveTimer=Math.min(waveTimer+dt*2,2);}
-render(dt);}
-function render(dt){if(!E||!E.ctx)return;var ctx=E.ctx;
+if(enemiesKilled>=waveEnemies&&enemies.length===0){waveTimer=Math.min(waveTimer+dt*2,2);}}
+function render(ctx){if(!E||!ctx)return;
 ctx.clearRect(0,0,gameWidth,gameHeight);
 ctx.fillStyle='#0a0a1a';ctx.fillRect(0,0,gameWidth,gameHeight);
 // Stars
