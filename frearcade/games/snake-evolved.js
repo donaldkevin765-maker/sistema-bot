@@ -26,7 +26,6 @@
   var ateCount, targetFood;
   var offsetX, offsetY;
   var scorePopups = [];
-  var respawning = false;
 
   function init() {
     E = this.engine;
@@ -80,7 +79,6 @@
     }
 
     scorePopups = [];
-    respawning = false;
 
     // Ensure food doesn't overlap
     createFood();
@@ -167,7 +165,6 @@
     dir = { col: 1, row: 0 };
     nextDir = { col: 1, row: 0 };
     moveDelay = baseDelay; // reset speed
-    respawning = true;
   }
 
   // ── Update ──
@@ -300,7 +297,6 @@
       snake.pop();
     }
 
-    respawning = false;
 
     // Win check
     if (ateCount >= targetFood) {

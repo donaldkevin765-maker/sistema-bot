@@ -250,10 +250,10 @@
         ctx.fillRect(x, y, cellSize, cellSize);
         ctx.strokeStyle = visited[r][c] ? '#4488ff' : '#112244';
         ctx.lineWidth = 1.5;
-        if (cell.top)    drawLine(x, y, x + cellSize, y);
-        if (cell.bottom) drawLine(x, y + cellSize, x + cellSize, y + cellSize);
-        if (cell.left)   drawLine(x, y, x, y + cellSize);
-        if (cell.right)  drawLine(x + cellSize, y, x + cellSize, y + cellSize);
+        if (cell.top)    drawLine(ctx, x, y, x + cellSize, y);
+        if (cell.bottom) drawLine(ctx, x, y + cellSize, x + cellSize, y + cellSize);
+        if (cell.left)   drawLine(ctx, x, y, x, y + cellSize);
+        if (cell.right)  drawLine(ctx, x + cellSize, y, x + cellSize, y + cellSize);
       }
     }
 
@@ -391,7 +391,7 @@
     }
   }
 
-  function drawLine(x1, y1, x2, y2) {
+  function drawLine(ctx, x1, y1, x2, y2) {
     ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
   }
 

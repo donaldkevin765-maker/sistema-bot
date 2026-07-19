@@ -305,6 +305,11 @@
     }
 
     if (state === 'levelComplete') {
+      try {
+        window.FreeArcadeSave.setHighScore('BlockBreaker', E.getScore());
+        window.FreeArcadeSave.setBestLevels(level);
+        window.FreeArcadeSave.incrementStat('totalBricksBroken', totalBricksDestroyed);
+      } catch (e) { console.warn('save level complete stats error:', e); }
       if (input.action) {
         E.setLevel(level + 1);
         init.call({ engine: E });
