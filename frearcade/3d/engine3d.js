@@ -289,13 +289,21 @@
       document.body.appendChild(canvas);
     }
 
-    ctx2d = canvas.getContext('2d');
-
     renderer = new THREE.WebGLRenderer({
       canvas: canvas,
       antialias: CONFIG.ANTIALIAS,
       alpha: false,
     });
+
+    // 2D overlay context for HUD — only available after WebGL renderer is created
+    // (getContext('2d') returns null on a WebGL canvas, so we use a separate overlay canvas)
+    var overlayCanvas = document.createElement('canvas');
+    overlayCanvas.id = 'hudOverlay';
+    overlayCanvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;';
+    overlayCanvas.width = W;
+    overlayCanvas.height = H;
+    canvas.parentNode.appendChild(overlayCanvas);
+    ctx2d = overlayCanvas.getContext('2d');
     renderer.setSize(W, H);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(CONFIG.BG_COLOR, 1);
@@ -347,6 +355,11 @@
     H = window.innerHeight;
     if (renderer) {
       renderer.setSize(W, H);
+    }
+    var overlayEl = document.getElementById('hudOverlay');
+    if (overlayEl) {
+      overlayEl.width = W;
+      overlayEl.height = H;
     }
     if (camera) {
       camera.aspect = W / H;
@@ -991,6 +1004,10 @@
       renderer.dispose();
       renderer = null;
     }
+    // Remove overlay canvas
+    var overlayEl = document.getElementById('hudOverlay');
+    if (overlayEl && overlayEl.parentNode) overlayEl.parentNode.removeChild(overlayEl);
+    ctx2d = null;
     document.removeEventListener('keydown', onKeyDown);
     document.removeEventListener('keyup', onKeyUp);
     scene = null;
