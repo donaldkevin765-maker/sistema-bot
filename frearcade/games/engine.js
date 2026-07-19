@@ -33,6 +33,23 @@ window.FreeArcade = window.FreeArcadeEngine = (function () {
     e.preventDefault();
   }
 
+  // Mouse input (for shoot in Run n Gun, Twin Stick, etc.)
+  var mouseButtons = { left: false, middle: false, right: false };
+
+  function onMouseDown(e) {
+    if (e.button === 0) mouseButtons.left = true;
+    if (e.button === 1) mouseButtons.middle = true;
+    if (e.button === 2) mouseButtons.right = true;
+    e.preventDefault();
+    _resumeAudio();
+  }
+  function onMouseUp(e) {
+    if (e.button === 0) mouseButtons.left = false;
+    if (e.button === 1) mouseButtons.middle = false;
+    if (e.button === 2) mouseButtons.right = false;
+    e.preventDefault();
+  }
+
   // Touch → directional mapping (multi-touch virtual joystick)
   var touchStartX = 0, touchStartY = 0;
   var touchDir = null;
@@ -396,6 +413,7 @@ window.FreeArcade = window.FreeArcadeEngine = (function () {
     canvas = document.getElementById(_canvasId);
     if (!canvas) return console.error('Canvas not found');
     ctx = canvas.getContext('2d');
+    if (!ctx) { console.error('Could not get 2D rendering context'); return; }
     W = canvas.width;
     H = canvas.height;
 
@@ -410,6 +428,13 @@ window.FreeArcade = window.FreeArcadeEngine = (function () {
     _shakeX = 0;
     _shakeY = 0;
     currentGame = null;
+
+    // Reset input state to avoid stale key presses between games
+    keys = {};
+    keysJustPressed = {};
+    _prevKeys = {};
+    touchDir = null;
+    touchJustTapped = false;
 
     if (gameModule && gameModule.init) {
       currentGame = gameModule;
@@ -459,7 +484,14 @@ window.FreeArcade = window.FreeArcadeEngine = (function () {
         getJoysticks: getJoysticks,
         emit: function () {},
       };
-      gameModule.init(gameModule.engine);
+      try {
+        gameModule.init(gameModule.engine);
+      } catch (e) {
+        console.error('Game init error:', e);
+        currentGame = null;
+        stopLoop();
+        throw e; // Let run2DGame's try-catch show the error in the UI
+      }
     }
     startLoop();
   }
@@ -516,6 +548,7 @@ window.FreeArcade = window.FreeArcadeEngine = (function () {
       right: keys['ArrowRight'] || keys['KeyD'],
       up:    keys['ArrowUp']    || keys['KeyW'],
       down:  keys['ArrowDown']  || keys['KeyS'],
+      shoot: mouseButtons.left || keys['Space'],
       action: keysJustPressed['Space'] || keysJustPressed['Enter'] || hadTap,
       escape: keysJustPressed['Escape'],
     };
@@ -557,11 +590,14 @@ window.FreeArcade = window.FreeArcadeEngine = (function () {
     canvas = document.getElementById(_canvasId);
     if (!canvas) return console.error('Canvas element not found');
     ctx = canvas.getContext('2d');
+    if (!ctx) { console.error('Could not get 2D rendering context'); return; }
     W = canvas.width;
     H = canvas.height;
 
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('keyup', onKeyUp);
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mouseup', onMouseUp);
     document.addEventListener('touchstart', onTouchStart, { passive: false });
     document.addEventListener('touchend', onTouchEnd, { passive: false });
     document.addEventListener('touchmove', onTouchMove, { passive: false });
@@ -576,6 +612,8 @@ window.FreeArcade = window.FreeArcadeEngine = (function () {
     if (_listenersAttached) {
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('keyup', onKeyUp);
+      document.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('mouseup', onMouseUp);
       document.removeEventListener('touchstart', onTouchStart);
       document.removeEventListener('touchend', onTouchEnd);
       document.removeEventListener('touchmove', onTouchMove);
