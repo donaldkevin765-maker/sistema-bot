@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEON TENNIS</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #050510;
+  color: #e0e0ff;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+#game-container {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+#canvas-wrapper {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+#gameCanvas {
+  display: block;
+  border-radius: 6px;
+  cursor: none;
+}
+#ui-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+#hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 940px;
+  padding: 6px 20px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+  z-index: 1;
+}
+#hud .left { color: #00ccff; }
+#hud .right { color: #ff66cc; }
+#hud .divider { color: #3a3a5a; font-size: 18px; }
+#score-display {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 100px;
+  font-weight: 900;
+  color: rgba(255,255,255,0.04);
+  pointer-events: none;
+  letter-spacing: 20px;
+  user-select: none;
+}
+#lobby {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: rgba(5,5,16,0.92);
+  pointer-events: auto;
+  z-index: 10;
+  border-radius: 6px;
+}
+#lobby.hidden { display: none; }
+#lobby h1 {
+  font-size: 32px;
+  margin-bottom: 4px;
+  background: linear-gradient(90deg, #00ccff, #ff66cc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+#lobby p.sub {
+  color: #888;
+  font-size: 13px;
+  margin-bottom: 24px;
+}
+#lobby input {
+  background: #12122a;
+  border: 1px solid #2a2a5a;
+  color: #e0e0ff;
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 15px;
+  width: 240px;
+  margin-bottom: 10px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+#lobby input::placeholder { color: #555; }
+#lobby input:focus { border-color: #6a6aff; }
+#lobby button {
+  background: linear-gradient(135deg, #4a4aff, #8844ff);
+  border: none;
+  color: #fff;
+  padding: 10px 28px;
+  border-radius: 4px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.2s;
+  margin: 4px;
+  pointer-events: auto;
+}
+#lobby button:hover { transform: scale(1.03); box-shadow: 0 0 18px rgba(100,100,255,0.4); }
+#lobby button:active { transform: scale(0.97); }
+#lobby .status { color: #aaa; font-size: 13px; margin-top: 12px; }
+#lobby .error { color: #ff4488; font-size: 13px; margin-top: 8px; }
+#game-over {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: rgba(5,5,16,0.85);
+  z-index: 10;
+  pointer-events: auto;
+  border-radius: 6px;
+}
+#game-over.hidden { display: none; }
+#game-over h2 { font-size: 36px; margin-bottom: 6px; }
+#game-over .sub { color: #aaa; font-size: 15px; margin-bottom: 18px; }
+#game-over button {
+  background: linear-gradient(135deg, #4a4aff, #8844ff);
+  border: none; color: #fff; padding: 10px 28px;
+  border-radius: 4px; font-size: 15px; font-weight: 600;
+  cursor: pointer; margin: 4px; pointer-events: auto;
+}
+#game-over button:hover { transform: scale(1.03); box-shadow: 0 0 18px rgba(100,100,255,0.4); }
+#reconnect-overlay {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: rgba(5,5,16,0.9);
+  z-index: 11;
+  pointer-events: auto;
+  border-radius: 6px;
+}
+#reconnect-overlay.hidden { display: none; }
+#reconnect-overlay h3 { font-size: 22px; margin-bottom: 6px; color: #ffcc44; }
+#reconnect-overlay p { color: #aaa; font-size: 14px; }
+#reconnect-overlay .countdown { font-size: 36px; font-weight: 700; color: #ffcc44; margin: 8px 0; }
+#reconnect-overlay button {
+  background: #3a3a6a;
+  border: none; color: #fff; padding: 8px 20px;
+  border-radius: 4px; font-size: 14px; cursor: pointer; margin-top: 8px;
+  pointer-events: auto;
+}
+#reconnect-overlay button:hover { background: #5a5a8a; }
+#lobby-status {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #888;
+  font-size: 12px;
+  z-index: 5;
+  pointer-events: none;
+}
+#canvas-container {
+  position: relative;
+}
+.kill-feed {
+  position: absolute;
+  top: 8px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+}
+</style>
+</head>
+<body>
+<div id="game-container">
+  <!-- HUD bar at top -->
+  <div id="hud">
+    <span class="left" id="score-left">0</span>
+    <span class="divider">✦ NEON TENNIS ✦</span>
+    <span class="right" id="score-right">0</span>
+  </div>
+
+  <div id="canvas-wrapper">
+    <div id="canvas-container">
+    <canvas id="gameCanvas" width="900" height="600"></canvas>
+
+    <div id="ui-overlay">
+      <!-- Big background score -->
+      <div id="score-display">0 : 0</div>
+
+      <!-- Lobby -->
+      <div id="lobby">
+        <h1>🎾 NEON TENNIS</h1>
+        <p class="sub">1v1 · First to 7 wins</p>
+        <input id="inp-name" type="text" placeholder="Your name" maxlength="16" autocomplete="off">
+        <input id="inp-room" type="text" placeholder="Room name" maxlength="20" autocomplete="off" value="room1">
+        <button id="btn-join">JOIN GAME</button>
+        <div class="status" id="lobby-msg">Enter a name and room to start</div>
+        <div class="error" id="lobby-err"></div>
+      </div>
+
+      <!-- Game Over -->
+      <div id="game-over" class="hidden">
+        <h2 id="go-title">🏆 GAME OVER</h2>
+        <div class="sub" id="go-sub">Left wins!</div>
+        <div class="sub" id="go-score" style="color:#888;font-size:13px;"></div>
+        <button id="btn-rematch">PLAY AGAIN</button>
+      </div>
+
+      <!-- Reconnect -->
+      <div id="reconnect-overlay" class="hidden">
+        <h3>⚠ CONNECTION LOST</h3>
+        <p>Reconnecting...</p>
+        <div class="countdown" id="reconnect-sec">30</div>
+        <p style="color:#888;font-size:12px;">Your spot is saved for 30 seconds</p>
+        <button id="btn-reconnect-cancel">NEW GAME</button>
+      </div>
+
+      <!-- Lobby status -->
+      <div id="lobby-status"></div>
+    </div> <!-- end ui-overlay -->
+    </div> <!-- end canvas-container -->
+  </div> <!-- end canvas-wrapper -->
+</div> <!-- end game-container -->
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// ─── DOM refs ─────────────────────────────────────────────────
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const lobby = document.getElementById('lobby');
+const inpName = document.getElementById('inp-name');
+const inpRoom = document.getElementById('inp-room');
+const btnJoin = document.getElementById('btn-join');
+const lobbyMsg = document.getElementById('lobby-msg');
+const lobbyErr = document.getElementById('lobby-err');
+const gameOver = document.getElementById('game-over');
+const goTitle = document.getElementById('go-title');
+const goSub = document.getElementById('go-sub');
+const goScore = document.getElementById('go-score');
+const btnRematch = document.getElementById('btn-rematch');
+const reconnectOverlay = document.getElementById('reconnect-overlay');
+const reconnectSec = document.getElementById('reconnect-sec');
+const lobbyStatus = document.getElementById('lobby-status');
+const scoreLeft = document.getElementById('score-left');
+const scoreRight = document.getElementById('score-right');
+const scoreDisplay = document.getElementById('score-display');
+
+// ─── Constants ────────────────────────────────────────────────
+const ARENA_W = 900;
+const ARENA_H = 600;
+const PADDLE_W = 12;
+const PADDLE_H = 80;
+const PADDLE_OFFSET = 30;
+const BALL_RADIUS = 8;
+
+// ─── State ──────────────────────────────────────────────────
+const G = {
+  socket: null,
+  localId: null,
+  connected: false,
+  gameState: 'waiting',
+  side: 'left',
+  paddleIndex: 0,
+  scores: [0, 0],
+
+  // Server state (authoritative)
+  paddles: [],       // { id, y, side, disconnected }
+  ball: { x: 450, y: 300, vx: 0, vy: 0, speed: 200 },
+  trail: [],
+
+  // Lerp targets (time-based)
+  lerpPaddles: new Map(),
+  lerpBall: { renderX: 450, renderY: 300, prevX: 450, prevY: 300, targetX: 450, targetY: 300, lerpStart: 0 },
+
+  // Input
+  keys: { up: false, down: false },
+
+  // Reconnect
+  myRoom: '',
+  reconnecting: false,
+  reconnectTimer: 0,
+  wasDisconnected: false,
+
+  // Visual
+  lastFrameTime: 0,
+  canvasW: 900,
+  canvasH: 600,
+  serveTimer: 0,
+  lastHitById: null,
+  prevScores: [0, 0],
+};
+
+// ─── Engagement (Audio + Screen Shake + Kill Feed) ────────
+const SFX = {
+  _ctx: null,
+  _init() { try { this._ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} },
+  _ensure() { if (!this._ctx) this._init(); if (this._ctx && this._ctx.state === 'suspended') this._ctx.resume(); },
+  hit() {
+    this._ensure(); if (!this._ctx) return;
+    const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(660, this._ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(880, this._ctx.currentTime + 0.08);
+    g.gain.setValueAtTime(0.07, this._ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + 0.1);
+    o.connect(g); g.connect(this._ctx.destination); o.start(); o.stop(this._ctx.currentTime + 0.1);
+  },
+  wall() {
+    this._ensure(); if (!this._ctx) return;
+    const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+    o.type = 'triangle'; o.frequency.setValueAtTime(220, this._ctx.currentTime);
+    g.gain.setValueAtTime(0.04, this._ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + 0.06);
+    o.connect(g); g.connect(this._ctx.destination); o.start(); o.stop(this._ctx.currentTime + 0.06);
+  },
+  score() {
+    this._ensure(); if (!this._ctx) return;
+    [500, 400, 300].forEach((f, i) => {
+      const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(f, this._ctx.currentTime + i * 0.1);
+      g.gain.setValueAtTime(0.06, this._ctx.currentTime + i * 0.1);
+      g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + i * 0.1 + 0.15);
+      o.connect(g); g.connect(this._ctx.destination); o.start(this._ctx.currentTime + i * 0.1);
+      o.stop(this._ctx.currentTime + i * 0.1 + 0.15);
+    });
+  },
+  victory() {
+    this._ensure(); if (!this._ctx) return;
+    [400, 500, 600, 800, 1000].forEach((f, i) => {
+      const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(f, this._ctx.currentTime + i * 0.1);
+      g.gain.setValueAtTime(0.06, this._ctx.currentTime + i * 0.1);
+      g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + i * 0.1 + 0.18);
+      o.connect(g); g.connect(this._ctx.destination); o.start(this._ctx.currentTime + i * 0.1);
+      o.stop(this._ctx.currentTime + i * 0.1 + 0.18);
+    });
+  },
+  scoreOpp() {
+    this._ensure(); if (!this._ctx) return;
+    [300, 250, 200].forEach((f, i) => {
+      const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+      o.type = 'square'; o.frequency.setValueAtTime(f, this._ctx.currentTime + i * 0.12);
+      g.gain.setValueAtTime(0.04, this._ctx.currentTime + i * 0.12);
+      g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + i * 0.12 + 0.12);
+      o.connect(g); g.connect(this._ctx.destination); o.start(this._ctx.currentTime + i * 0.12);
+      o.stop(this._ctx.currentTime + i * 0.12 + 0.12);
+    });
+  },
+};
+let shakeAmount = 0;
+function triggerShake(v) { shakeAmount = Math.max(shakeAmount, Math.min(v, 20)); }
+
+// Kill feed overlay
+const kfEl = document.createElement('div');
+kfEl.className = 'kill-feed';
+const canvasContainer = document.getElementById('canvas-container');
+canvasContainer.appendChild(kfEl);
+function pushFeed(text, color) {
+  const e = document.createElement('div');
+  e.style.cssText = `font-size:11px;padding:3px 14px;border-radius:3px;background:${color || 'rgba(170,68,255,.12)'};color:#cc88ff;animation:kfAnim2 2.2s ease-out forwards;white-space:nowrap;font-weight:600`;
+  e.textContent = text;
+  kfEl.appendChild(e);
+  setTimeout(() => e.remove(), 2400);
+}
+const kfStyle = document.createElement('style');
+kfStyle.textContent = '@keyframes kfAnim2{0%{opacity:0;transform:translateY(4px)}8%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0;transform:translateY(-10px)}}';
+document.head.appendChild(kfStyle);
+
+// ─── Socket ─────────────────────────────────────────────────
+function connect() {
+  if (G.socket && G.socket.connected) return;
+
+  G.socket = io(window.location.origin, {
+    transports: ['websocket', 'polling'],
+    reconnection: false,
+  });
+
+  G.socket.on('connect', () => {
+    if (G.reconnecting) {
+      // Attempt reconnect
+      const saved = localStorage.getItem('G2_player');
+      if (saved) {
+        try {
+          const d = JSON.parse(saved);
+          G.socket.emit('reconnect-game', { playerId: d.pid, roomName: d.room });
+          return;
+        } catch(e) {}
+      }
+    }
+  });
+
+  G.socket.on('connected', (data) => {
+    G.localId = data.playerId;
+    G.connected = true;
+    G.gameState = data.gameState;
+    G.side = data.side;
+    G.paddleIndex = data.paddleIndex;
+    G.reconnecting = false;
+    G.wasDisconnected = false;
+
+    // Save for reconnect
+    if (G.myRoom) {
+      localStorage.setItem('G2_player', JSON.stringify({ pid: G.localId, room: G.myRoom }));
+    }
+
+    // Hide reconnect overlay
+    reconnectOverlay.classList.add('hidden');
+
+    if (data.reconnected) {
+      pushFeed('🔄 RECONNECTED', 'rgba(68,255,136,.15)');
+    }
+  });
+
+  G.socket.on('game-state', (data) => {
+    if (!data) return;
+    G.gameState = data.gameState;
+    G.ball = data.ball;
+    G.scores = data.scores;
+    G.serveTimer = data.serveTimer || 0;
+    G.lastHitById = data.lastHitById;
+    G.trail = data.trail || [];
+
+    // Detect score change for sound
+    if (data.scores) {
+      if (data.scores[0] !== G.prevScores[0] || data.scores[1] !== G.prevScores[1]) {
+        const mySide = G.side;
+        if (mySide === 'left' && data.scores[0] > G.prevScores[0]) {
+          SFX.score(); triggerShake(6);
+          pushFeed('🎯 POINT!', 'rgba(0,204,255,.15)');
+        } else if (mySide === 'right' && data.scores[1] > G.prevScores[1]) {
+          SFX.score(); triggerShake(6);
+          pushFeed('🎯 POINT!', 'rgba(255,102,204,.15)');
+        } else if ((mySide === 'left' && data.scores[1] > G.prevScores[1]) ||
+                   (mySide === 'right' && data.scores[0] > G.prevScores[0])) {
+          SFX.scoreOpp(); triggerShake(4);
+        }
+        G.prevScores = [...data.scores];
+      }
+    }
+
+    // Detect ball hits for sound
+    if (data.lastHitById && data.lastHitById !== G.lastHitById) {
+      if (data.lastHitById === G.localId) {
+        SFX.hit();
+        triggerShake(3);
+      }
+    }
+    G.lastHitById = data.lastHitById;
+
+    // Update paddle data for lerp (time-based)
+    const pnow = performance.now();
+    if (data.paddles) {
+      for (const pd of data.paddles) {
+        if (!G.lerpPaddles.has(pd.id)) {
+          G.lerpPaddles.set(pd.id, { renderY: pd.y, prevY: pd.y, targetY: pd.y, side: pd.side, username: pd.username, disconnected: pd.disconnected, lerpStart: pnow });
+        } else {
+          const lp = G.lerpPaddles.get(pd.id);
+          lp.prevY = lp.renderY;
+          lp.targetY = pd.y;
+          lp.disconnected = pd.disconnected;
+          lp.lerpStart = pnow;
+        }
+      }
+      // Remove stale
+      for (const [id] of G.lerpPaddles) {
+        if (!data.paddles.find(p => p.id === id)) G.lerpPaddles.delete(id);
+      }
+    }
+
+    // Ball lerp target (time-based)
+    if (data.ball) {
+      G.lerpBall.prevX = G.lerpBall.renderX;
+      G.lerpBall.prevY = G.lerpBall.renderY;
+      G.lerpBall.targetX = data.ball.x;
+      G.lerpBall.targetY = data.ball.y;
+      G.lerpBall.lerpStart = pnow;
+    }
+
+    // Update HUD
+    scoreLeft.textContent = data.scores ? data.scores[0] : '0';
+    scoreRight.textContent = data.scores ? data.scores[1] : '0';
+    if (data.scores) {
+      const s = data.scores;
+      scoreDisplay.textContent = s[0] + ' : ' + s[1];
+    }
+
+    // Lobby status
+    if (data.gameState === 'waiting') {
+      if (data.paddles) {
+        lobbyMsg.textContent = 'Players in lobby: ' + data.paddles.length + '/4 · Waiting for more...';
+      }
+    } else if (data.gameState === 'ended' && !data.reconnected) {
+      // game-over handled separately
+    }
+  });
+
+  G.socket.on('reconnect-failed', (data) => {
+    G.reconnecting = false;
+    localStorage.removeItem('G2_player');
+    showLobby();
+    lobbyErr.textContent = data.message || 'Reconnect failed';
+  });
+
+  G.socket.on('game-over', (data) => {
+    showGameOver(data);
+    try {
+      window.parent.postMessage({ type: 'G2_SCORE', winner: data.winner, winnerName: data.winnerName, scores: data.scores }, '*');
+    } catch(e) {}
+  });
+
+  G.socket.on('error', (data) => {
+    lobbyErr.textContent = data.message || 'Error';
+  });
+
+  G.socket.on('disconnect', () => {
+    if (G.gameState === 'playing' || G.gameState === 'waiting') {
+      G.wasDisconnected = true;
+      G.reconnecting = true;
+      G.reconnectTimer = 30;
+      reconnectOverlay.classList.remove('hidden');
+      reconnectSec.textContent = '30';
+    }
+  });
+}
+
+// ─── Lobby UI ──────────────────────────────────────────────
+function showLobby() {
+  lobby.classList.remove('hidden');
+  gameOver.classList.add('hidden');
+  reconnectOverlay.classList.add('hidden');
+}
+
+function hideLobby() {
+  lobby.classList.add('hidden');
+}
+
+function joinGame() {
+  const name = inpName.value.trim() || 'Player' + (Math.random() * 1000 | 0);
+  const room = inpRoom.value.trim() || 'default';
+  G.myRoom = room;
+
+  if (!G.socket || !G.socket.connected) {
+    lobbyErr.textContent = 'Connecting...';
+    return;
+  }
+
+  lobbyErr.textContent = '';
+  lobbyMsg.textContent = 'Joining...';
+  G.socket.emit('join', { username: name, roomName: room });
+}
+
+// ─── Game Over ─────────────────────────────────────────────
+function showGameOver(data) {
+  gameOver.classList.remove('hidden');
+  const isLeftWinner = data.winner === 0;
+  const mySideWon = (G.side === 'left' && isLeftWinner) || (G.side === 'right' && !isLeftWinner);
+  goTitle.textContent = mySideWon ? '🏆 VICTORY!' : '💔 DEFEAT';
+  goSub.textContent = data.winnerName + ' wins!';
+  goScore.textContent = (data.scores || [0, 0]).join(' - ');
+  SFX.victory();
+  triggerShake(10);
+}
+
+// ─── Input ─────────────────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  const key = e.key.toLowerCase();
+  if (key === 'w' || key === 'arrowup') { G.keys.up = true; e.preventDefault(); }
+  if (key === 's' || key === 'arrowdown') { G.keys.down = true; e.preventDefault(); }
+  if (key === ' ' && G.gameState === 'ended') { btnRematch.click(); e.preventDefault(); }
+});
+
+document.addEventListener('keyup', (e) => {
+  const key = e.key.toLowerCase();
+  if (key === 'w' || key === 'arrowup') { G.keys.up = false; e.preventDefault(); }
+  if (key === 's' || key === 'arrowdown') { G.keys.down = false; e.preventDefault(); }
+});
+
+// ─── Send input (10Hz) ──────────────────────────────────────
+setInterval(() => {
+  if (G.socket && G.socket.connected && G.connected && G.gameState === 'playing') {
+    G.socket.emit('input', { up: G.keys.up, down: G.keys.down });
+  }
+}, 100);
+
+// ─── Render ─────────────────────────────────────────────────
+function render(now) {
+  const w = canvas.width;
+  const h = canvas.height;
+
+  // Screen shake
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (shakeAmount > 0.5) {
+    ctx.translate((Math.random() - 0.5) * shakeAmount * 2, (Math.random() - 0.5) * shakeAmount * 2);
+    shakeAmount *= 0.88;
+  } else shakeAmount = 0;
+
+  // Background
+  ctx.fillStyle = '#050510';
+  ctx.fillRect(0, 0, w, h);
+
+  // Center line (dashed)
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 12]);
+  ctx.beginPath();
+  ctx.moveTo(w / 2, 0);
+  ctx.lineTo(w / 2, h);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Center circle
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(w / 2, h / 2, 60, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // ── Ball trail ──
+  if (G.trail) {
+    for (const t of G.trail) {
+      const alpha = t.life * 0.35;
+      const size = 3 + (1 - t.life) * 5;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, size, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(170, 68, 255, ${alpha})`;
+      ctx.fill();
+    }
+  }
+
+  // ── Ball (time-based lerp) ──
+  const ballT = Math.min(1, (now - G.lerpBall.lerpStart) / 40);
+  G.lerpBall.renderX = G.lerpBall.prevX + (G.lerpBall.targetX - G.lerpBall.prevX) * ballT;
+  G.lerpBall.renderY = G.lerpBall.prevY + (G.lerpBall.targetY - G.lerpBall.prevY) * ballT;
+
+    // Ball glow
+  const grdBall = ctx.createRadialGradient(G.lerpBall.renderX, G.lerpBall.renderY, 0, G.lerpBall.renderX, G.lerpBall.renderY, BALL_RADIUS * 4);
+  grdBall.addColorStop(0, 'rgba(170, 68, 255, 0.3)');
+  grdBall.addColorStop(1, 'rgba(170, 68, 255, 0)');
+  ctx.fillStyle = grdBall;
+  ctx.fillRect(G.lerpBall.renderX - BALL_RADIUS * 4, G.lerpBall.renderY - BALL_RADIUS * 4, BALL_RADIUS * 8, BALL_RADIUS * 8);
+
+  // Ball body
+  ctx.beginPath();
+  ctx.arc(G.lerpBall.renderX, G.lerpBall.renderY, BALL_RADIUS, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.shadowColor = '#aa44ff';
+  ctx.shadowBlur = 18;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // ── Paddles (time-based lerp) ──
+  for (const [id, lp] of G.lerpPaddles) {
+    const pt = Math.min(1, (now - lp.lerpStart) / 40);
+    lp.renderY = lp.prevY + (lp.targetY - lp.prevY) * pt;
+
+    const isLeft = lp.side === 'left';
+    const px = isLeft ? PADDLE_OFFSET : w - PADDLE_OFFSET - PADDLE_W;
+    const color = isLeft ? '#00ccff' : '#ff66cc';
+
+    // Glow
+    ctx.shadowColor = isLeft ? '#00ccff' : '#ff66cc';
+    ctx.shadowBlur = 14;
+    ctx.fillStyle = color;
+    ctx.fillRect(px, lp.renderY, PADDLE_W, PADDLE_H);
+    ctx.shadowBlur = 0;
+
+    // Inner highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.fillRect(px + 2, lp.renderY + 4, 3, PADDLE_H - 8);
+
+    // Disconnected overlay
+    if (lp.disconnected) {
+      ctx.fillStyle = 'rgba(255,0,0,0.2)';
+      ctx.fillRect(px, lp.renderY, PADDLE_W, PADDLE_H);
+    }
+
+    // Username label
+    ctx.fillStyle = isLeft ? '#00ccff' : '#ff66cc';
+    ctx.font = '10px monospace';
+    ctx.textAlign = isLeft ? 'right' : 'left';
+    ctx.fillText(lp.username || '???', isLeft ? px - 4 : px + PADDLE_W + 4, lp.renderY + PADDLE_H / 2 + 3);
+  }
+
+  // ── Serve countdown ──
+  if (G.serveTimer > 0) {
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = '40px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(Math.ceil(G.serveTimer) + '...', w / 2, h / 2 - 50);
+  }
+
+  // ── Arena border ──
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0, 0, w, h);
+}
+
+// ─── Responsive resize ─────────────────────────────────────
+function resizeCanvas() {
+  const wrapper = document.getElementById('canvas-wrapper');
+  if (!wrapper) return;
+  const maxW = wrapper.clientWidth;
+  const maxH = wrapper.clientHeight;
+  const scale = Math.min(maxW / ARENA_W, maxH / ARENA_H);
+  const cw = Math.floor(ARENA_W * scale);
+  const ch = Math.floor(ARENA_H * scale);
+  canvas.style.width = cw + 'px';
+  canvas.style.height = ch + 'px';
+  const container = document.getElementById('canvas-container');
+  if (container) {
+    container.style.width = cw + 'px';
+    container.style.height = ch + 'px';
+  }
+}
+
+// ─── Game loop ──────────────────────────────────────────────
+function gameLoop(now) {
+  resizeCanvas();
+  render(now);
+  setTimeout(gameLoop, 2); // ~360Hz+ loop
+}
+
+// ─── Reconnect countdown ────────────────────────────────────
+setInterval(() => {
+  if (G.reconnecting && G.reconnectTimer > 0) {
+    G.reconnectTimer--;
+    reconnectSec.textContent = '' + G.reconnectTimer;
+    if (G.reconnectTimer <= 0) {
+      G.reconnecting = false;
+      localStorage.removeItem('G2_player');
+      showLobby();
+      lobbyErr.textContent = 'Reconnect window expired';
+    }
+  }
+
+  // Try reconnect every 3 seconds
+  if (G.reconnecting && G.reconnectTimer > 0 && G.reconnectTimer % 3 === 0) {
+    if (!G.socket || !G.socket.connected) {
+      connect();
+    }
+  }
+}, 1000);
+
+// ─── Button events ─────────────────────────────────────────
+btnJoin.addEventListener('click', () => {
+  hideLobby();
+  if (!G.socket || !G.socket.connected) connect();
+  setTimeout(joinGame, 200);
+});
+
+btnRematch.addEventListener('click', () => {
+  gameOver.classList.add('hidden');
+  showLobby();
+  lobbyMsg.textContent = 'Create or join a new game';
+});
+
+document.getElementById('btn-reconnect-cancel').addEventListener('click', () => {
+  G.reconnecting = false;
+  localStorage.removeItem('G2_player');
+  if (G.socket) { G.socket.disconnect(); G.socket = null; }
+  showLobby();
+  lobbyErr.textContent = '';
+});
+
+// ─── Init ──────────────────────────────────────────────────
+function init() {
+  connect();
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+  lobbyMsg.textContent = 'Connected · Enter name and room';
+  setTimeout(gameLoop, 2);
+
+  // Auto-fill from localStorage
+  const saved = localStorage.getItem('G2_player');
+  if (saved) {
+    try {
+      const d = JSON.parse(saved);
+      inpRoom.value = d.room || '';
+    } catch(e) {}
+  }
+}
+
+// ─── Focus trap for lobby input ─────────────────────────────
+inpName.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnJoin.click(); });
+inpRoom.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnJoin.click(); });
+
+init();
+</script>
+</body>
+</html>

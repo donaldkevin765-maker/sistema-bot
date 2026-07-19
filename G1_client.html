@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEON CONQUEST — G1</title>
+<style>
+/* ─── Reset & base ─── */
+*{margin:0;padding:0;box-sizing:border-box;user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#06060f;color:#fff;font-family:'Segoe UI',system-ui,Arial,sans-serif}
+canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
+
+/* ─── Lobby ─── */
+#lobby{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;background:radial-gradient(ellipse at 50% 40%,#0f0a2a,#06060f);transition:opacity .4s,transform .4s}
+#lobby.hidden{opacity:0;transform:scale(0.96);pointer-events:none}
+#lobby h1{font-size:36px;font-weight:800;letter-spacing:3px;margin-bottom:4px;background:linear-gradient(135deg,#ff3366,#00e5ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+#lobby .sub{color:#555;font-size:12px;letter-spacing:2px;text-transform:uppercase;margin-bottom:30px}
+#lobby input{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:10px 14px;color:#fff;font-size:14px;width:220px;text-align:center;outline:none;transition:border-color .2s;margin-bottom:10px}
+#lobby input:focus{border-color:#4488ff}
+#lobby input::placeholder{color:#444}
+#lobby button{background:linear-gradient(135deg,#ff3366,#cc0055);border:none;border-radius:6px;padding:10px 40px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:transform .15s,box-shadow .15s;margin-top:6px;letter-spacing:1px}
+#lobby button:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(255,51,102,.3)}
+#lobby button:active{transform:scale(0.97)}
+#lobby .status{color:#666;font-size:12px;margin-top:14px;text-align:center}
+#lobby .status.error{color:#ff4466}
+
+/* ─── HUD ─── */
+#hud{position:absolute;top:0;left:0;right:0;z-index:5;pointer-events:none;opacity:0;transition:opacity .5s}
+#hud.show{opacity:1}
+#scorebar{display:flex;align-items:center;justify-content:center;padding:8px 0;gap:14px;background:linear-gradient(180deg,rgba(6,6,15,.85),transparent)}
+#scorebar .team{font-size:13px;font-weight:700;padding:2px 10px;border-radius:4px;min-width:60px;text-align:center}
+#scorebar .team.t0{color:#ff3366}
+#scorebar .team.t1{color:#00e5ff}
+#scorebar .score{font-size:20px;font-weight:800;min-width:30px;text-align:center}
+#scorebar .vs{color:#333;font-size:11px;font-weight:700;letter-spacing:2px}
+
+#cp-hud{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:6px}
+#cp-hud .cp-dot{width:36px;height:6px;border-radius:3px;background:rgba(255,255,255,.08);transition:background .3s,box-shadow .3s}
+#cp-hud .cp-dot.own0{background:#ff3366;box-shadow:0 0 8px rgba(255,51,102,.4)}
+#cp-hud .cp-dot.own1{background:#00e5ff;box-shadow:0 0 8px rgba(0,229,255,.4)}
+#cp-hud .cp-dot.capturing{animation:pulse .6s ease-in-out infinite alternate}
+@keyframes pulse{from{opacity:.5}to{opacity:1}}
+
+#players-hud{position:absolute;bottom:40px;left:12px;right:12px;display:flex;justify-content:space-between;pointer-events:none}
+#players-hud .team-hud{display:flex;flex-direction:column;gap:4px}
+#players-hud .team-hud.right{text-align:right}
+#players-hud .p-row{display:flex;align-items:center;gap:8px;font-size:11px}
+#players-hud .team-hud.right .p-row{flex-direction:row-reverse}
+#players-hud .p-name{color:#888;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#players-hud .p-hp-bar{width:60px;height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden}
+#players-hud .p-hp-fill{height:100%;border-radius:3px;transition:width .15s}
+#players-hud .p-hp-fill.team0{background:linear-gradient(90deg,#ff3366,#ff6688)}
+#players-hud .p-hp-fill.team1{background:linear-gradient(90deg,#00e5ff,#66f0ff)}
+#players-hud .p-disconnected{color:#444}
+#players-hud .p-dead .p-name{color:#333}
+
+/* ─── Game Over ─── */
+#gameover{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20;background:rgba(6,6,15,.82);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .5s}
+#gameover.show{opacity:1;pointer-events:auto}
+#gameover h1{font-size:38px;font-weight:800;letter-spacing:2px;margin-bottom:10px}
+#gameover .winner0{color:#ff3366}
+#gameover .winner1{color:#00e5ff}
+#gameover .finalscores{display:flex;gap:30px;margin:8px 0 20px}
+#gameover .finalscores div{text-align:center}
+#gameover .finalscores .fs-team{font-size:11px;color:#666;text-transform:uppercase}
+#gameover .finalscores .fs-score{font-size:28px;font-weight:700}
+#gameover .finalscores .fs-score.t0{color:#ff3366}
+#gameover .finalscores .fs-score.t1{color:#00e5ff}
+#gameover button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:8px 28px;color:#fff;font-size:13px;cursor:pointer;transition:background .2s;margin-top:4px}
+#gameover button:hover{background:rgba(255,255,255,.14)}
+
+/* ─── Reconnect overlay ─── */
+#reconnect-overlay{position:absolute;top:0;left:0;right:0;bottom:0;z-index:30;background:rgba(6,6,15,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;opacity:0;pointer-events:none;transition:opacity .3s}
+#reconnect-overlay.show{opacity:1;pointer-events:auto}
+.spinner{width:28px;height:28px;border:2px solid rgba(255,255,255,.08);border-top:2px solid #4488ff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#reconnect-overlay .rtxt{color:#666;font-size:13px}
+#reconnect-overlay .rsec{color:#888;font-size:11px}
+</style>
+</head>
+<body>
+
+<!-- Lobby -->
+<div id="lobby">
+  <h1>NEON CONQUEST</h1>
+  <div class="sub">2v2 Capture Point Arena</div>
+  <input id="inp-name" placeholder="Your name" maxlength="12" autocomplete="off">
+  <input id="inp-room" placeholder="Room code" maxlength="8" autocomplete="off" value="room1">
+  <button id="btn-join">JOIN</button>
+  <div class="status" id="lobby-status">Enter a name and room to play</div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="scorebar">
+    <div class="team t0" id="team0-label">TEAM RED</div>
+    <div class="score" id="score0" style="color:#ff3366">0</div>
+    <div class="vs">VS</div>
+    <div class="score" id="score1" style="color:#00e5ff">0</div>
+    <div class="team t1" id="team1-label">TEAM CYAN</div>
+  </div>
+  <div id="cp-hud"></div>
+  <div id="players-hud">
+    <div class="team-hud" id="team0-players"></div>
+    <div class="team-hud right" id="team1-players"></div>
+  </div>
+</div>
+
+<!-- Game Over -->
+<div id="gameover">
+  <h1 id="go-winner">TEAM RED WINS!</h1>
+  <div class="finalscores">
+    <div><div class="fs-team">TEAM RED</div><div class="fs-score t0" id="go-score0">0</div></div>
+    <div><div class="fs-team">TEAM CYAN</div><div class="fs-score t1" id="go-score1">0</div></div>
+  </div>
+  <button id="btn-back">← Back to Lobby</button>
+</div>
+
+<!-- Reconnect -->
+<div id="reconnect-overlay">
+  <div class="spinner"></div>
+  <div class="rtxt">Connection lost — reconnecting...</div>
+  <div class="rsec" id="reconnect-sec">30s remaining</div>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+// NEON CONQUEST  —  G1 Client
+// ═══════════════════════════════════════════════════════════════
+// Quality features:
+//  1. Client-side prediction — local movement responds instantly
+//  2. Time-based Lerp interpolation — remote movement is silky
+//  3. ObjectPooler for particles — 60fps with zero GC churn
+//  4. Reconnect via localStorage — survive page refresh (30s)
+//  5. postMessage score API — parent-window integration
+// ═══════════════════════════════════════════════════════════════
+
+// ─── Engagement System (Audio + Screen Shake + Feed) ────────
+// Zero asset audio via Web Audio API. Screen shake on impact events.
+const SFX = {
+  _ctx: null,
+  _init() {
+    try { this._ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  },
+  _ensure() {
+    if (!this._ctx) this._init();
+    if (this._ctx && this._ctx.state === 'suspended') this._ctx.resume();
+  },
+  shoot() {
+    this._ensure(); if (!this._ctx) return;
+    const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+    o.type = 'square'; o.frequency.setValueAtTime(800, this._ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(400, this._ctx.currentTime + 0.08);
+    g.gain.setValueAtTime(0.04, this._ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + 0.08);
+    o.connect(g); g.connect(this._ctx.destination); o.start(); o.stop(this._ctx.currentTime + 0.08);
+  },
+  hit() {
+    this._ensure(); if (!this._ctx) return;
+    [200, 150].forEach((f, i) => {
+      const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(f, this._ctx.currentTime + i * 0.03);
+      g.gain.setValueAtTime(0.06, this._ctx.currentTime + i * 0.03);
+      g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + i * 0.03 + 0.1);
+      o.connect(g); g.connect(this._ctx.destination); o.start(this._ctx.currentTime + i * 0.03);
+      o.stop(this._ctx.currentTime + i * 0.03 + 0.1);
+    });
+  },
+  capture() {
+    this._ensure(); if (!this._ctx) return;
+    [400, 500, 600].forEach((f, i) => {
+      const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(f, this._ctx.currentTime + i * 0.08);
+      g.gain.setValueAtTime(0.05, this._ctx.currentTime + i * 0.08);
+      g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + i * 0.08 + 0.12);
+      o.connect(g); g.connect(this._ctx.destination); o.start(this._ctx.currentTime + i * 0.08);
+      o.stop(this._ctx.currentTime + i * 0.08 + 0.12);
+    });
+  },
+  death() {
+    this._ensure(); if (!this._ctx) return;
+    [300, 200, 100].forEach((f, i) => {
+      const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(f, this._ctx.currentTime + i * 0.1);
+      g.gain.setValueAtTime(0.08, this._ctx.currentTime + i * 0.1);
+      g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + i * 0.1 + 0.2);
+      o.connect(g); g.connect(this._ctx.destination); o.start(this._ctx.currentTime + i * 0.1);
+      o.stop(this._ctx.currentTime + i * 0.1 + 0.2);
+    });
+  },
+  victory() {
+    this._ensure(); if (!this._ctx) return;
+    [500, 600, 700, 900].forEach((f, i) => {
+      const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(f, this._ctx.currentTime + i * 0.12);
+      g.gain.setValueAtTime(0.06, this._ctx.currentTime + i * 0.12);
+      g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + i * 0.12 + 0.2);
+      o.connect(g); g.connect(this._ctx.destination); o.start(this._ctx.currentTime + i * 0.12);
+      o.stop(this._ctx.currentTime + i * 0.12 + 0.2);
+    });
+  },
+};
+
+// ─── Screen Shake ──────────────────────────────────────────
+let shakeAmount = 0;
+function triggerShake(intensity) { shakeAmount = Math.max(shakeAmount, Math.min(intensity, 20)); }
+
+// ─── Kill Feed (DOM overlay) ───────────────────────────────
+const killFeedEl = document.createElement('div');
+killFeedEl.id = 'kill-feed';
+killFeedEl.style.cssText = 'position:absolute;top:44px;left:50%;transform:translateX(-50%);z-index:7;display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:none';
+document.body.appendChild(killFeedEl);
+
+function addKillEntry(text, color = '#ff6688') {
+  const el = document.createElement('div');
+  el.style.cssText = `font-size:11px;padding:3px 14px;border-radius:3px;background:rgba(255,51,102,.1);color:${color};animation:kfFade2 2s ease-out forwards;white-space:nowrap;font-weight:600`;
+  el.textContent = text;
+  killFeedEl.appendChild(el);
+  setTimeout(() => { if (el.parentNode) el.remove(); }, 2200);
+}
+
+// Inject keyframes for kill feed
+const kfStyle = document.createElement('style');
+kfStyle.textContent = '@keyframes kfFade2{0%{opacity:0;transform:translateY(5px)}10%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0;transform:translateY(-12px)}}';
+document.head.appendChild(kfStyle);
+
+// ─── Constants ──────────────────────────────────────────────
+const ARENA_W = 900;
+const ARENA_H = 600;
+const PLAYER_RADIUS = 14;
+const PROJ_RADIUS = 5;
+const CAPTURE_RADIUS = 55;
+const PLAYER_SPEED = 160;
+const TICK_RATE = 30;
+const TICK_MS = 1000 / TICK_RATE;
+const LERP_DURATION = 40;      // ms (slightly over 1 tick for overlap)
+const CORRECTION_THRESHOLD = 20; // px — snap if server differs more
+const RECONNECT_SEC = 30;
+const STORAGE_KEY = 'g1_playerId';
+const ROOM_PREFIX = 'G1_';
+
+// ─── DOM refs ───────────────────────────────────────────────
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const lobby = document.getElementById('lobby');
+const hud = document.getElementById('hud');
+const gameover = document.getElementById('gameover');
+const reconnectOverlay = document.getElementById('reconnect-overlay');
+const reconnectSec = document.getElementById('reconnect-sec');
+const lobbyStatus = document.getElementById('lobby-status');
+const inpName = document.getElementById('inp-name');
+const inpRoom = document.getElementById('inp-room');
+const btnJoin = document.getElementById('btn-join');
+const btnBack = document.getElementById('btn-back');
+const score0 = document.getElementById('score0');
+const score1 = document.getElementById('score1');
+const goWinner = document.getElementById('go-winner');
+const goScore0 = document.getElementById('go-score0');
+const goScore1 = document.getElementById('go-score1');
+const cpHud = document.getElementById('cp-hud');
+const team0Players = document.getElementById('team0-players');
+const team1Players = document.getElementById('team1-players');
+
+// ─── Object Pooler (Client-side — particles) ───────────────
+class ObjectPooler {
+  constructor(initialSize) {
+    this._pool = [];
+    for (let i = 0; i < initialSize; i++) {
+      this._pool.push({ active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, maxLife: 0, color: '', size: 0 });
+    }
+  }
+  get() {
+    for (let i = 0; i < this._pool.length; i++) {
+      if (!this._pool[i].active) { this._pool[i].active = true; return this._pool[i]; }
+    }
+    const o = { active: true, x: 0, y: 0, vx: 0, vy: 0, life: 0, maxLife: 0, color: '', size: 0 };
+    this._pool.push(o);
+    return o;
+  }
+  release(o) { if (o) o.active = false; }
+  releaseAll() { for (const o of this._pool) o.active = false; }
+  update(dt) {
+    for (const o of this._pool) {
+      if (!o.active) continue;
+      o.x += o.vx * dt;
+      o.y += o.vy * dt;
+      o.life -= dt;
+      if (o.life <= 0) o.active = false;
+    }
+  }
+  draw(ctx) {
+    for (const o of this._pool) {
+      if (!o.active) continue;
+      const a = Math.max(0, o.life / o.maxLife);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = o.color;
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, o.size * a, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ─── Game State ─────────────────────────────────────────────
+const G = {
+  // Connection
+  socket: null,
+  localId: null,
+  myTeam: -1,
+  connected: false,
+
+  // Game state from server
+  gameState: 'waiting',
+  players: {},      // id → renderPlayer
+  projectiles: [],  // [{x, y}]
+  capturePoints: [],// [{x, y, owner, progress}]
+  scores: [0, 0],
+  winner: -1,
+
+  // Local prediction
+  local: null,      // {x, y, aimX, aimY}
+
+  // Input
+  keys: { w: false, a: false, s: false, d: false },
+  mouseX: ARENA_W / 2,
+  mouseY: ARENA_H / 2,
+  shooting: false,
+
+  // Reconnect
+  myRoom: '',
+  reconnecting: false,
+  reconnectTimer: 0,
+  wasDisconnected: false,
+
+  // Particles
+  particles: new ObjectPooler(150),
+
+  // Timing
+  lastServerState: 0,
+  lastInputSent: 0,
+  lastFrameTime: 0,
+  canvasW: 0,
+  canvasH: 0,
+};
+
+// Remote player structure used for interpolation
+function createRenderPlayer() {
+  return {
+    // Server-authoritative positions (snapshots)
+    serverX: 0, serverY: 0,
+    // Interpolation state
+    prevX: 0, prevY: 0,
+    targetX: 0, targetY: 0,
+    renderX: 0, renderY: 0,
+    lerpStart: 0,
+    // Visual
+    aimX: 0, aimY: 0,
+    hp: 100, maxHp: 100,
+    alive: true,
+    team: 0,
+    username: '',
+    disconnected: false,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 1. CLIENT-SIDE PREDICTION
+// ═══════════════════════════════════════════════════════════════
+function predictLocalMovement(dt) {
+  if (!G.local) return;
+  let dx = 0, dy = 0;
+  if (G.keys.w) dy -= 1;
+  if (G.keys.s) dy += 1;
+  if (G.keys.a) dx -= 1;
+  if (G.keys.d) dx += 1;
+  if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
+  G.local.x += dx * PLAYER_SPEED * dt;
+  G.local.y += dy * PLAYER_SPEED * dt;
+  G.local.x = Math.max(PLAYER_RADIUS, Math.min(ARENA_W - PLAYER_RADIUS, G.local.x));
+  G.local.y = Math.max(PLAYER_RADIUS, Math.min(ARENA_H - PLAYER_RADIUS, G.local.y));
+}
+
+// Apply smooth correction from server authority
+function correctLocalPrediction(serverX, serverY) {
+  if (!G.local) return;
+  const dx = serverX - G.local.x;
+  const dy = serverY - G.local.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist > CORRECTION_THRESHOLD) {
+    // Big discrepancy: snap to server (rare — only on spawn/teleport)
+    G.local.x = serverX;
+    G.local.y = serverY;
+  } else if (dist > 2) {
+    // Small discrepancy: blend smoothly toward server
+    G.local.x += dx * 0.25;
+    G.local.y += dy * 0.25;
+  }
+  // < 2px: ignore tiny floating-point differences
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 2. TIME-BASED LERP INTERPOLATION (for remote players)
+// ═══════════════════════════════════════════════════════════════
+function initLerp(rp, x, y, now) {
+  // First time seeing this player: set everything to the server position
+  rp.prevX = x;
+  rp.prevY = y;
+  rp.targetX = x;
+  rp.targetY = y;
+  rp.renderX = x;
+  rp.renderY = y;
+  rp.serverX = x;
+  rp.serverY = y;
+  rp.lerpStart = now;
+}
+
+function updateLerp(rp, serverX, serverY, now) {
+  rp.serverX = serverX;
+  rp.serverY = serverY;
+  // Shift the interpolation window: previous target becomes the new base,
+  // and we start lerping from the current rendered position for smoothness
+  rp.prevX = rp.renderX;
+  rp.prevY = rp.renderY;
+  rp.targetX = serverX;
+  rp.targetY = serverY;
+  rp.lerpStart = now;
+}
+
+function applyLerp(rp, now) {
+  const elapsed = now - rp.lerpStart;
+  const t = Math.min(1, elapsed / LERP_DURATION);
+  rp.renderX = rp.prevX + (rp.targetX - rp.prevX) * t;
+  rp.renderY = rp.prevY + (rp.targetY - rp.prevY) * t;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 3. SOCKET.IO CONNECTION + RECONNECTION
+// ═══════════════════════════════════════════════════════════════
+function connect() {
+  if (G.socket && G.socket.connected) return;
+
+  G.socket = io(window.location.origin, {
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 500,
+    reconnectionDelayMax: 3000,
+  });
+
+  G.socket.on('connected', (data) => {
+    G.localId = data.playerId;
+    G.myTeam = data.team;
+    G.connected = true;
+    G.gameState = data.gameState;
+    G.wasDisconnected = false;
+
+    // Store playerId for reconnection
+    try { localStorage.setItem(STORAGE_KEY, data.playerId); } catch (e) {}
+
+    if (data.reconnected) {
+      // Successful reconnect: hide overlay, keep playing
+      hideReconnect();
+      G.reconnecting = false;
+    } else {
+      // Fresh join
+      lobby.classList.add('hidden');
+      hud.classList.add('show');
+    }
+  });
+
+  G.socket.on('game-state', (data) => {
+    applyServerState(data);
+  });
+
+  G.socket.on('game-over', (data) => {
+    G.gameState = 'ended';
+    G.winner = data.winner;
+    showGameOver(data.winner, data.scores);
+    // postMessage API: notify parent window of score
+    try {
+      window.parent.postMessage({
+        type: 'G1_SCORE',
+        winner: data.winner,
+        scores: data.scores,
+        roomId: ROOM_PREFIX + G.myRoom,
+      }, '*');
+    } catch (e) {}
+  });
+
+  G.socket.on('reconnect-failed', () => {
+    G.reconnecting = false;
+    hideReconnect();
+    lobbyStatus.textContent = 'Reconnection failed — join a new game';
+    lobbyStatus.className = 'status error';
+    lobby.classList.remove('hidden');
+  });
+
+  G.socket.on('error', (data) => {
+    lobbyStatus.textContent = data.message || 'Connection error';
+    lobbyStatus.className = 'status error';
+  });
+
+  G.socket.on('disconnect', () => {
+    G.connected = false;
+    // Only show reconnect if we were actually in a game
+    if (G.localId && G.myRoom && !G.wasDisconnected) {
+      showReconnect();
+      attemptReconnect();
+    }
+  });
+}
+
+function attemptReconnect() {
+  G.reconnecting = true;
+  G.reconnectTimer = RECONNECT_SEC;
+
+  const savedId = (() => { try { return localStorage.getItem(STORAGE_KEY); } catch (e) { return null; } })();
+
+  const tryReconnect = () => {
+    if (!G.reconnecting) return;
+    G.reconnectTimer--;
+    reconnectSec.textContent = G.reconnectTimer + 's remaining';
+
+    if (G.reconnectTimer <= 0) {
+      G.reconnecting = false;
+      hideReconnect();
+      lobbyStatus.textContent = 'Reconnection timed out — join a new room';
+      lobbyStatus.className = 'status error';
+      lobby.classList.remove('hidden');
+      return;
+    }
+
+    if (G.socket && G.socket.connected && savedId && G.myRoom) {
+      G.socket.emit('reconnect-game', { playerId: savedId, roomName: G.myRoom });
+    } else {
+      setTimeout(tryReconnect, 1000);
+    }
+  };
+  setTimeout(tryReconnect, 500);
+}
+
+// ─── state application (called on every server tick) ────────
+function applyServerState(data) {
+  if (!data) return;
+  G.gameState = data.gameState;
+  G.scores = data.scores || [0, 0];
+  G.capturePoints = data.cp || [];
+  G.projectiles = data.proj || [];
+  G.winner = data.winner != null ? data.winner : -1;
+
+  const now = performance.now();
+
+  if (data.players) {
+    for (const sp of data.players) {
+      let rp = G.players[sp.id];
+
+      if (G.localId && sp.id === G.localId) {
+        // ── Local player: correct prediction ──
+        if (!G.local) {
+          G.local = { x: sp.x, y: sp.y, aimX: sp.x, aimY: sp.y };
+        }
+        correctLocalPrediction(sp.x, sp.y);
+        G.local.aimX = sp.aimX;
+        G.local.aimY = sp.aimY;
+        continue;
+      }
+
+      // ── Remote player: update interpolation ──
+      if (!rp) {
+        rp = createRenderPlayer();
+        G.players[sp.id] = rp;
+        initLerp(rp, sp.x, sp.y, now);
+      } else {
+        updateLerp(rp, sp.x, sp.y, now);
+      }
+
+      rp.hp = sp.hp;
+      rp.maxHp = sp.maxHp;
+      rp.alive = sp.alive;
+      rp.team = sp.team;
+      rp.username = sp.username;
+      rp.aimX = sp.aimX;
+      rp.aimY = sp.aimY;
+      rp.disconnected = sp.disconnected;
+    }
+
+    // Remove stale players
+    const currentIds = new Set(data.players.map(p => p.id));
+    for (const id in G.players) {
+      if (!currentIds.has(id)) {
+        // Spawn particles at last known position before removing
+        if (G.players[id]) {
+          spawnDeathParticles(G.players[id].renderX, G.players[id].renderY, G.players[id].team === 0 ? '#ff3366' : '#00e5ff', 15);
+        }
+        delete G.players[id];
+      }
+    }
+
+    // ── Engagement: detect events for sounds + shake ──
+    // Shoot sound: if new projectiles appeared and we were shooting
+    if (G._prevProjCount !== undefined && data.proj && data.proj.length > G._prevProjCount && G.shooting) {
+      SFX.shoot();
+    }
+    G._prevProjCount = data.proj ? data.proj.length : 0;
+
+    // Track previous HP per player to detect damage
+    if (!G._prevHP) G._prevHP = {};
+    if (!G._prevCP) G._prevCP = [];
+    // Check capture point changes
+    for (let i = 0; i < data.cp.length; i++) {
+      const cp = data.cp[i];
+      const prev = G._prevCP[i];
+      if (prev !== undefined && prev.owner !== cp.owner && cp.owner >= 0) {
+        SFX.capture();
+        triggerShake(4);
+        addKillEntry(cp.owner === 0 ? '🔴 TEAM RED captured a node!' : '🔵 TEAM CYAN captured a node!', cp.owner === 0 ? '#ff3366' : '#00e5ff');
+      }
+    }
+    G._prevCP = data.cp ? data.cp.map(c => ({ owner: c.owner, progress: c.progress })) : [];
+
+    // Check damage events on remote players
+    for (const sp of data.players) {
+      const prevHP = G._prevHP[sp.id];
+      if (prevHP !== undefined && sp.hp < prevHP && sp.id !== G.localId) {
+        triggerShake(Math.max(3, (prevHP - sp.hp) * 0.5));
+        SFX.hit();
+        if (sp.hp <= 0) {
+          addKillEntry(`💥 ${sp.username} eliminated!`, sp.team === 0 ? '#ff3366' : '#00e5ff');
+          SFX.death();
+          triggerShake(8);
+        }
+      }
+      G._prevHP[sp.id] = sp.hp;
+    }
+
+    // Check if we got hit (our HP dropped)
+    const myServer = data.players.find(p => p.id === G.localId);
+    if (myServer) {
+      const prevMyHP = G._prevHP[G.localId];
+      if (prevMyHP !== undefined && myServer.hp < prevMyHP) {
+        triggerShake(Math.max(3, (prevMyHP - myServer.hp) * 0.5));
+        SFX.hit();
+        if (myServer.hp <= 0) {
+          SFX.death();
+          triggerShake(10);
+          addKillEntry('💀 You were eliminated!', '#ff4466');
+        }
+      }
+      G._prevHP[G.localId] = myServer.hp;
+    }
+  }
+
+  updateHUD(now);
+
+  // Victory sound
+  if (data.gameState === 'ended' && data.winner >= 0 && !G._playedVictory) {
+    G._playedVictory = true;
+    SFX.victory();
+  }
+  if (data.gameState !== 'ended') G._playedVictory = false;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 4. INPUT
+// ═══════════════════════════════════════════════════════════════
+function sendInput() {
+  if (!G.socket || !G.socket.connected || !G.localId) return;
+  G.socket.emit('input', {
+    w: G.keys.w,
+    a: G.keys.a,
+    s: G.keys.s,
+    d: G.keys.d,
+    mx: G.mouseX,
+    my: G.mouseY,
+    shoot: G.shooting,
+  });
+}
+
+document.addEventListener('keydown', (e) => {
+  const k = e.key.toLowerCase();
+  if (k === 'w' || k === 'a' || k === 's' || k === 'd') {
+    G.keys[k] = true;
+    e.preventDefault();
+    sendInput();
+  }
+  // Also handle arrow keys for convenience
+  if (k === 'arrowup') { G.keys.w = true; e.preventDefault(); }
+  if (k === 'arrowdown') { G.keys.s = true; e.preventDefault(); }
+  if (k === 'arrowleft') { G.keys.a = true; e.preventDefault(); }
+  if (k === 'arrowright') { G.keys.d = true; e.preventDefault(); }
+});
+
+document.addEventListener('keyup', (e) => {
+  const k = e.key.toLowerCase();
+  if (k === 'w' || k === 'a' || k === 's' || k === 'd') {
+    G.keys[k] = false;
+    e.preventDefault();
+    sendInput();
+  }
+  if (k === 'arrowup') { G.keys.w = false; e.preventDefault(); }
+  if (k === 'arrowdown') { G.keys.s = false; e.preventDefault(); }
+  if (k === 'arrowleft') { G.keys.a = false; e.preventDefault(); }
+  if (k === 'arrowright') { G.keys.d = false; e.preventDefault(); }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = ARENA_W / rect.width;
+  const scaleY = ARENA_H / rect.height;
+  G.mouseX = (e.clientX - rect.left) * scaleX;
+  G.mouseY = (e.clientY - rect.top) * scaleY;
+});
+
+canvas.addEventListener('mousedown', (e) => {
+  if (e.button === 0) {
+    G.shooting = true;
+    sendInput();
+  }
+});
+
+canvas.addEventListener('mouseup', (e) => {
+  if (e.button === 0) {
+    G.shooting = false;
+    sendInput();
+  }
+});
+
+// Touch support for tablets
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  G.mouseX = (t.clientX - rect.left) * (ARENA_W / rect.width);
+  G.mouseY = (t.clientY - rect.top) * (ARENA_H / rect.height);
+  G.shooting = true;
+  sendInput();
+});
+
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  G.mouseX = (t.clientX - rect.left) * (ARENA_W / rect.width);
+  G.mouseY = (t.clientY - rect.top) * (ARENA_H / rect.height);
+});
+
+canvas.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  G.shooting = false;
+  sendInput();
+});
+
+// ═══════════════════════════════════════════════════════════════
+// 5. RENDERER (Canvas 2D — Neon aesthetic)
+// ═══════════════════════════════════════════════════════════════
+function resizeCanvas() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  canvas.width = w;
+  canvas.height = h;
+  G.canvasW = w;
+  G.canvasH = h;
+}
+
+function render(now) {
+  resizeCanvas();
+
+  const w = G.canvasW;
+  const h = G.canvasH;
+  const scale = Math.min(w / ARENA_W, h / ARENA_H);
+  const ox = (w - ARENA_W * scale) / 2;
+  const oy = (h - ARENA_H * scale) / 2;
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+  // ── Screen shake ──
+  if (shakeAmount > 0.5) {
+    const sx = (Math.random() - 0.5) * shakeAmount * 2;
+    const sy = (Math.random() - 0.5) * shakeAmount * 2;
+    ctx.translate(sx, sy);
+    shakeAmount *= 0.88;
+  } else {
+    shakeAmount = 0;
+  }
+
+  // ── Background ──
+  ctx.fillStyle = '#06060f';
+  ctx.fillRect(0, 0, w, h);
+
+  // ── Arena with offset and scale ──
+  ctx.translate(ox, oy);
+  ctx.scale(scale, scale);
+
+  // Clipping rect
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, ARENA_W, ARENA_H);
+  ctx.clip();
+
+  // Background
+  ctx.fillStyle = '#08081a';
+  ctx.fillRect(0, 0, ARENA_W, ARENA_H);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= ARENA_W; x += 40) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, ARENA_H); ctx.stroke();
+  }
+  for (let y = 0; y <= ARENA_H; y += 40) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(ARENA_W, y); ctx.stroke();
+  }
+
+  // Arena border
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(0, 0, ARENA_W, ARENA_H);
+
+  // ── Capture points ──
+  for (const cp of G.capturePoints) {
+    drawCapturePoint(cp, now);
+  }
+
+  // ── Projectiles ──
+  ctx.shadowColor = '#fff';
+  ctx.shadowBlur = 10;
+  for (const p of G.projectiles) {
+    ctx.fillStyle = '#ffe066';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, PROJ_RADIUS, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+
+  // ── Remote players (interpolated) ──
+  for (const id in G.players) {
+    const rp = G.players[id];
+    if (rp.disconnected) continue;
+    applyLerp(rp, now);
+    drawPlayer(rp.renderX, rp.renderY, rp.aimX, rp.aimY, rp.team, rp.hp, rp.maxHp, rp.alive, rp.username, now);
+  }
+
+  // ── Local player (predicted position) ──
+  if (G.local) {
+    drawPlayer(G.local.x, G.local.y, G.local.aimX, G.local.aimY, G.myTeam, 100, 100, true, 'YOU', now);
+  }
+
+  // ── Particles ──
+  G.particles.draw(ctx);
+
+  ctx.restore(); // remove clip
+}
+
+function drawCapturePoint(cp, now) {
+  const x = cp.x;
+  const y = cp.y;
+  const pulse = 0.5 + 0.5 * Math.sin(now * 0.002 + x);
+
+  // Outer ring
+  ctx.beginPath();
+  ctx.arc(x, y, CAPTURE_RADIUS, 0, Math.PI * 2);
+  ctx.strokeStyle = cp.owner === 0 ? 'rgba(255,51,102,0.2)' :
+                    cp.owner === 1 ? 'rgba(0,229,255,0.2)' :
+                    'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Progress ring
+  if (cp.progress > 0 && cp.progress < 1) {
+    ctx.beginPath();
+    ctx.arc(x, y, CAPTURE_RADIUS, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * cp.progress);
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // Core
+  ctx.shadowColor = cp.owner === 0 ? '#ff3366' : cp.owner === 1 ? '#00e5ff' : 'rgba(255,255,255,0.1)';
+  ctx.shadowBlur = cp.owner >= 0 ? 15 * pulse : 0;
+  ctx.fillStyle = cp.owner === 0 ? '#ff3366' :
+                  cp.owner === 1 ? '#00e5ff' :
+                  'rgba(255,255,255,0.08)';
+  ctx.beginPath();
+  ctx.arc(x, y, 6 + 2 * pulse, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Center dot
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(x, y, 2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawPlayer(x, y, aimX, aimY, team, hp, maxHp, alive, username, now) {
+  if (!alive) {
+    // Faint ghost when dead
+    ctx.globalAlpha = 0.2;
+  }
+
+  const color = team === 0 ? '#ff3366' : '#00e5ff';
+  const glowColor = team === 0 ? 'rgba(255,51,102,0.5)' : 'rgba(0,229,255,0.5)';
+
+  // Glow
+  ctx.shadowColor = glowColor;
+  ctx.shadowBlur = 20;
+
+  // Body
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(x, y, PLAYER_RADIUS, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Inner highlight
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.beginPath();
+  ctx.arc(x - 3, y - 3, PLAYER_RADIUS * 0.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Aim line
+  const angle = Math.atan2(aimY - y, aimX - x);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.globalAlpha = alive ? 0.4 : 0.1;
+  ctx.beginPath();
+  ctx.moveTo(x + Math.cos(angle) * PLAYER_RADIUS, y + Math.sin(angle) * PLAYER_RADIUS);
+  ctx.lineTo(x + Math.cos(angle) * (PLAYER_RADIUS + 25), y + Math.sin(angle) * (PLAYER_RADIUS + 25));
+  ctx.stroke();
+
+  ctx.globalAlpha = alive ? 1 : 0.2;
+
+  // HP bar (above player)
+  const barW = 30;
+  const barH = 4;
+  const barY = y - PLAYER_RADIUS - 10;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(x - barW / 2, barY, barW, barH);
+  const hpRatio = Math.max(0, hp / maxHp);
+  const hpColor = hpRatio > 0.5 ? `rgb(${Math.round(255 * (1 - hpRatio) * 2)},255,68)` :
+                  `rgb(255,${Math.round(255 * hpRatio * 2)},68)`;
+  ctx.fillStyle = hpColor;
+  ctx.fillRect(x - barW / 2, barY, barW * hpRatio, barH);
+
+  // Username
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = '9px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText(username, x, barY - 4);
+
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+}
+
+function spawnDeathParticles(x, y, color, count) {
+  for (let i = 0; i < (count || 10); i++) {
+    const p = G.particles.get();
+    p.x = x; p.y = y;
+    const ang = Math.random() * Math.PI * 2;
+    const spd = 30 + Math.random() * 80;
+    p.vx = Math.cos(ang) * spd;
+    p.vy = Math.sin(ang) * spd;
+    p.life = 0.3 + Math.random() * 0.4;
+    p.maxLife = p.life;
+    p.color = color;
+    p.size = 2 + Math.random() * 3;
+  }
+}
+
+// ─── Particles triggered on hit ─────────────────────────────
+function emitHitParticles(x, y) {
+  for (let i = 0; i < 6; i++) {
+    const p = G.particles.get();
+    p.x = x; p.y = y;
+    const ang = Math.random() * Math.PI * 2;
+    const spd = 20 + Math.random() * 40;
+    p.vx = Math.cos(ang) * spd;
+    p.vy = Math.sin(ang) * spd;
+    p.life = 0.2 + Math.random() * 0.2;
+    p.maxLife = p.life;
+    p.color = '#ffe066';
+    p.size = 2;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 6. HUD UPDATE
+// ═══════════════════════════════════════════════════════════════
+function updateHUD(now) {
+  // Scores
+  score0.textContent = G.scores[0];
+  score1.textContent = G.scores[1];
+
+  // Capture point indicators
+  let cpHTML = '';
+  for (const cp of G.capturePoints) {
+    let cls = 'cp-dot';
+    if (cp.owner === 0) cls += ' own0';
+    else if (cp.owner === 1) cls += ' own1';
+    if (cp.progress > 0 && cp.progress < 1) cls += ' capturing';
+    cpHTML += '<div class="' + cls + '"></div>';
+  }
+  cpHud.innerHTML = cpHTML;
+
+  // Player rows
+  let t0HTML = '', t1HTML = '';
+  for (const id in G.players) {
+    const rp = G.players[id];
+    if (rp.team === 0) {
+      t0HTML += playerRowHTML(rp, id);
+    } else {
+      t1HTML += playerRowHTML(rp, id);
+    }
+  }
+  team0Players.innerHTML = t0HTML;
+  team1Players.innerHTML = t1HTML;
+}
+
+function playerRowHTML(rp, id) {
+  const hpPct = Math.max(0, (rp.hp / rp.maxHp) * 100);
+  const color = rp.team === 0 ? '#ff3366' : '#00e5ff';
+  const dead = !rp.alive ? ' p-dead' : '';
+  const discon = rp.disconnected ? ' p-disconnected' : '';
+  const name = rp.disconnected ? rp.username + ' (DC)' : rp.username;
+  return '<div class="p-row' + dead + discon + '">' +
+    '<span class="p-name">' + name + '</span>' +
+    '<div class="p-hp-bar"><div class="p-hp-fill team' + rp.team + '" style="width:' + hpPct + '%"></div></div>' +
+    '</div>';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 7. UI HELPERS
+// ═══════════════════════════════════════════════════════════════
+function showReconnect() {
+  reconnectOverlay.classList.add('show');
+  reconnectSec.textContent = RECONNECT_SEC + 's remaining';
+}
+
+function hideReconnect() {
+  reconnectOverlay.classList.remove('show');
+}
+
+function showGameOver(winnerTeam, scores) {
+  const name = winnerTeam === 0 ? 'TEAM RED' : 'TEAM CYAN';
+  const cls = 'winner' + winnerTeam;
+  goWinner.textContent = name + ' WINS!';
+  goWinner.className = cls;
+  goScore0.textContent = scores[0];
+  goScore1.textContent = scores[1];
+  gameover.classList.add('show');
+  hud.classList.remove('show');
+}
+
+function resetUI() {
+  gameover.classList.remove('show');
+  hud.classList.remove('show');
+  lobby.classList.remove('hidden');
+  lobbyStatus.textContent = 'Enter a name and room to play';
+  lobbyStatus.className = 'status';
+  G.players = {};
+  G.projectiles = [];
+  G.local = null;
+  G.localId = null;
+  G.myTeam = -1;
+  G.connected = false;
+  G.gameState = 'waiting';
+  G.winner = -1;
+  G.wasDisconnected = true;
+  G.particles.releaseAll();
+  G.reconnecting = false;
+  hideReconnect();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 8. GAME LOOP (60 fps)
+// ═══════════════════════════════════════════════════════════════
+function gameLoop(timestamp) {
+  const dt = G.lastFrameTime ? Math.min((timestamp - G.lastFrameTime) / 1000, 0.05) : 1 / 60;
+  G.lastFrameTime = timestamp;
+
+  // Client-side prediction
+  if (G.gameState === 'playing' && G.local) {
+    predictLocalMovement(dt);
+  }
+
+  // Update particles
+  G.particles.update(dt);
+
+  // Send input at 30Hz (throttled)
+  const now = performance.now();
+  if (now - G.lastInputSent > TICK_MS) {
+    G.lastInputSent = now;
+    sendInput();
+  }
+
+  // Render
+  render(timestamp);
+
+  setTimeout(gameLoop, 2);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 9. LOBBY HANDLERS
+// ═══════════════════════════════════════════════════════════════
+btnJoin.addEventListener('click', () => {
+  const username = inpName.value.trim() || 'Player' + Math.floor(Math.random() * 999);
+  const roomName = inpRoom.value.trim();
+  if (!roomName) {
+    lobbyStatus.textContent = 'Enter a room code';
+    lobbyStatus.className = 'status error';
+    return;
+  }
+
+  G.myRoom = roomName;
+  G.wasDisconnected = false;
+  lobbyStatus.textContent = 'Connecting...';
+  lobbyStatus.className = 'status';
+
+  if (!G.socket || !G.socket.connected) {
+    connect();
+    // Wait for socket, then join
+    const waitForConnection = setInterval(() => {
+      if (G.socket && G.socket.connected) {
+        clearInterval(waitForConnection);
+        G.socket.emit('join', { username, roomName });
+      }
+    }, 100);
+    // Timeout after 10s
+    setTimeout(() => { clearInterval(waitForConnection); }, 10000);
+  } else {
+    G.socket.emit('join', { username, roomName });
+  }
+});
+
+btnBack.addEventListener('click', () => {
+  resetUI();
+  if (G.socket) {
+    G.socket.close();
+    G.socket = null;
+  }
+  G.myRoom = '';
+  try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+});
+
+// Allow Enter to join
+inpName.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnJoin.click(); });
+inpRoom.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnJoin.click(); });
+
+// ═══════════════════════════════════════════════════════════════
+// 10. INIT
+// ═══════════════════════════════════════════════════════════════
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// Start with clear state
+resetUI();
+
+// Auto-connect socket (for potential reconnect)
+connect();
+
+// Start game loop
+setTimeout(gameLoop, 2);
+
+console.log('[NEON CONQUEST G1] Client loaded — awaiting join');
+</script>
+</body>
+</html>

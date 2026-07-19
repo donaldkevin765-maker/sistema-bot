@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VOID RACERS</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #050510; color: #e0e0ff; font-family: 'Segoe UI', system-ui, sans-serif; }
+#game-container { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; }
+#canvas-wrapper { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; width: 100%; overflow: hidden; }
+#canvas-container { position: relative; }
+#gameCanvas { display: block; border-radius: 6px; }
+#ui-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+#hud { display: flex; justify-content: center; align-items: center; gap: 20px; font-size: 15px; font-weight: 700; padding: 6px 0; flex-shrink: 0; width: 100%; max-width: 940px; }
+#hud .player-score { display: flex; align-items: center; gap: 6px; }
+#hud .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+#lobby { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(5,5,16,0.92); pointer-events: auto; z-index: 10; border-radius: 6px; }
+#lobby.hidden { display: none; }
+#lobby h1 { font-size: 32px; margin-bottom: 4px; background: linear-gradient(90deg, #00ccff, #44ff88); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+#lobby p.sub { color: #888; font-size: 13px; margin-bottom: 24px; }
+#lobby input { background: #12122a; border: 1px solid #2a2a5a; color: #e0e0ff; padding: 10px 16px; border-radius: 4px; font-size: 15px; width: 240px; margin-bottom: 10px; outline: none; }
+#lobby input::placeholder { color: #555; }
+#lobby input:focus { border-color: #6a6aff; }
+#lobby button { background: linear-gradient(135deg, #4a4aff, #8844ff); border: none; color: #fff; padding: 10px 28px; border-radius: 4px; font-size: 15px; font-weight: 600; cursor: pointer; margin: 4px; pointer-events: auto; }
+#lobby button:hover { transform: scale(1.03); box-shadow: 0 0 18px rgba(100,100,255,0.4); }
+#lobby .status { color: #aaa; font-size: 13px; margin-top: 12px; }
+#lobby .error { color: #ff4488; font-size: 13px; margin-top: 8px; }
+#game-over { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(5,5,16,0.85); z-index: 10; pointer-events: auto; border-radius: 6px; }
+#game-over.hidden { display: none; }
+#game-over h2 { font-size: 36px; margin-bottom: 6px; }
+#game-over .sub { color: #aaa; font-size: 15px; margin-bottom: 18px; }
+#game-over button { background: linear-gradient(135deg, #4a4aff, #8844ff); border: none; color: #fff; padding: 10px 28px; border-radius: 4px; font-size: 15px; font-weight: 600; cursor: pointer; margin: 4px; pointer-events: auto; }
+#reconnect-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(5,5,16,0.9); z-index: 11; pointer-events: auto; border-radius: 6px; }
+#reconnect-overlay.hidden { display: none; }
+#reconnect-overlay h3 { font-size: 22px; margin-bottom: 4px; color: #ffcc44; }
+#reconnect-overlay .countdown { font-size: 36px; font-weight: 700; color: #ffcc44; margin: 8px 0; }
+#reconnect-overlay button { background: #3a3a6a; border: none; color: #fff; padding: 8px 20px; border-radius: 4px; font-size: 14px; cursor: pointer; margin-top: 8px; pointer-events: auto; }
+.kill-feed { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 7; display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="game-container">
+  <div id="hud"></div>
+  <div id="canvas-wrapper">
+    <div id="canvas-container">
+    <canvas id="gameCanvas" width="900" height="600"></canvas>
+    <div id="ui-overlay">
+    <div id="lobby">
+      <h1>🏁 VOID RACERS</h1>
+      <p class="sub">4-Player Racing · 3 laps to win</p>
+      <input id="inp-name" type="text" placeholder="Your name" maxlength="16">
+      <input id="inp-room" type="text" placeholder="Room name" maxlength="20" value="room1">
+      <button id="btn-join">JOIN RACE</button>
+      <div class="status" id="lobby-msg">Enter a name and room</div>
+      <div class="error" id="lobby-err"></div>
+    </div>
+    <div id="game-over" class="hidden">
+      <h2 id="go-title">🏆 RACE OVER</h2>
+      <div class="sub" id="go-sub">Winner!</div>
+      <button id="btn-rematch">RACE AGAIN</button>
+    </div>
+    <div id="reconnect-overlay" class="hidden">
+      <h3>⚠ CONNECTION LOST</h3>
+      <p>Reconnecting...</p>
+      <div class="countdown" id="reconnect-sec">30</div>
+      <button id="btn-reconnect-cancel">NEW GAME</button>
+  </div> <!-- end ui-overlay -->
+  </div> <!-- end canvas-container -->
+  </div> <!-- end canvas-wrapper -->
+</div> <!-- end game-container -->
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const lobby = document.getElementById('lobby');
+const inpName = document.getElementById('inp-name');
+const inpRoom = document.getElementById('inp-room');
+const btnJoin = document.getElementById('btn-join');
+const lobbyMsg = document.getElementById('lobby-msg');
+const lobbyErr = document.getElementById('lobby-err');
+const gameOver = document.getElementById('game-over');
+const goTitle = document.getElementById('go-title');
+const goSub = document.getElementById('go-sub');
+const btnRematch = document.getElementById('btn-rematch');
+const reconnectOverlay = document.getElementById('reconnect-overlay');
+const reconnectSec = document.getElementById('reconnect-sec');
+const hudEl = document.getElementById('hud');
+
+const CAR_COLORS = ['#00ccff', '#ff66cc', '#ffcc00', '#44ff88'];
+
+const G = {
+  socket: null, localId: null, connected: false, gameState: 'waiting', playerIndex: -1,
+  cars: [], trails: [], trackInner: [], trackOuter: [], waypoints: [],
+  lerpCars: new Map(),
+  keys: { up: false, down: false, left: false, right: false },
+  myRoom: '', reconnecting: false, reconnectTimer: 0, wasDisconnected: false,
+};
+
+// ─── Engagement ────────────────────────────────────────────
+const SFX = {
+  _ctx: null,
+  _init() { try { this._ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} },
+  _ensure() { if (!this._ctx) this._init(); if (this._ctx && this._ctx.state === 'suspended') this._ctx.resume(); },
+  engine() {
+    this._ensure(); if (!this._ctx) return;
+    const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(80, this._ctx.currentTime);
+    o.frequency.setValueAtTime(120, this._ctx.currentTime + 0.1);
+    g.gain.setValueAtTime(0.015, this._ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + 0.12);
+    o.connect(g); g.connect(this._ctx.destination); o.start(); o.stop(this._ctx.currentTime + 0.12);
+  },
+  lap() {
+    this._ensure(); if (!this._ctx) return;
+    [400, 500, 700].forEach((f, i) => {
+      const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(f, this._ctx.currentTime + i * 0.08);
+      g.gain.setValueAtTime(0.05, this._ctx.currentTime + i * 0.08);
+      g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + i * 0.08 + 0.14);
+      o.connect(g); g.connect(this._ctx.destination); o.start(this._ctx.currentTime + i * 0.08);
+      o.stop(this._ctx.currentTime + i * 0.08 + 0.14);
+    });
+  },
+  finish() {
+    this._ensure(); if (!this._ctx) return;
+    [300, 400, 500, 700, 900, 1100].forEach((f, i) => {
+      const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(f, this._ctx.currentTime + i * 0.1);
+      g.gain.setValueAtTime(0.06, this._ctx.currentTime + i * 0.1);
+      g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + i * 0.1 + 0.2);
+      o.connect(g); g.connect(this._ctx.destination); o.start(this._ctx.currentTime + i * 0.1);
+      o.stop(this._ctx.currentTime + i * 0.1 + 0.2);
+    });
+  },
+};
+let shakeAmount = 0;
+function triggerShake(v) { shakeAmount = Math.max(shakeAmount, Math.min(v, 20)); }
+
+const kfEl = document.createElement('div');
+kfEl.className = 'kill-feed';
+document.getElementById('canvas-container').appendChild(kfEl);
+function pushFeed(text, color) {
+  const e = document.createElement('div');
+  e.style.cssText = `font-size:11px;padding:3px 14px;border-radius:3px;background:${color || 'rgba(68,255,136,.12)'};color:#88ffcc;animation:kfAnim4 2.2s ease-out forwards;white-space:nowrap;font-weight:600`;
+  e.textContent = text;
+  kfEl.appendChild(e);
+  setTimeout(() => e.remove(), 2400);
+}
+const kfStyle = document.createElement('style');
+kfStyle.textContent = '@keyframes kfAnim4{0%{opacity:0;transform:translateY(4px)}8%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0;transform:translateY(-10px)}}';
+document.head.appendChild(kfStyle);
+
+// ─── Socket ─────────────────────────────────────────────────
+function connect() {
+  if (G.socket && G.socket.connected) return;
+  G.socket = io(window.location.origin, { transports: ['websocket', 'polling'], reconnection: false });
+
+  G.socket.on('connect', () => {
+    if (G.reconnecting) {
+      const saved = localStorage.getItem('G4_player');
+      if (saved) { try { const d = JSON.parse(saved); G.socket.emit('reconnect-game', { playerId: d.pid, roomName: d.room }); } catch(e) {} }
+    }
+  });
+
+  G.socket.on('connected', (data) => {
+    G.localId = data.playerId; G.connected = true; G.gameState = data.gameState; G.playerIndex = data.playerIndex;
+    G.reconnecting = false; G.wasDisconnected = false;
+    if (G.myRoom) localStorage.setItem('G4_player', JSON.stringify({ pid: G.localId, room: G.myRoom }));
+    reconnectOverlay.classList.add('hidden');
+    if (data.reconnected) pushFeed('🔄 RECONNECTED', 'rgba(68,255,136,.15)');
+  });
+
+  let prevLaps = {};
+  G.socket.on('game-state', (data) => {
+    if (!data) return;
+    G.gameState = data.gameState;
+    G.cars = data.cars || [];
+    G.trails = data.trails || [];
+    G.trackInner = data.trackInner || [];
+    G.trackOuter = data.trackOuter || [];
+    G.waypoints = data.waypoints || [];
+
+    // Time-based lerp for cars
+    const p4now = performance.now();
+    for (const c of G.cars) {
+      if (!G.lerpCars.has(c.id)) {
+        G.lerpCars.set(c.id, { renderX: c.x, renderY: c.y, renderAngle: c.angle || 0, prevX: c.x, prevY: c.y, prevAngle: c.angle || 0, targetX: c.x, targetY: c.y, targetAngle: c.angle || 0, color: c.color, username: c.username, disconnected: c.disconnected, finished: c.finished, speed: c.speed, id: c.id, lap: c.lap, lerpStart: p4now });
+      } else {
+        const lc = G.lerpCars.get(c.id);
+        lc.prevX = lc.renderX;
+        lc.prevY = lc.renderY;
+        lc.prevAngle = lc.renderAngle;
+        lc.targetX = c.x;
+        lc.targetY = c.y;
+        lc.targetAngle = c.angle || 0;
+        lc.color = c.color;
+        lc.username = c.username;
+        lc.disconnected = c.disconnected;
+        lc.finished = c.finished;
+        lc.speed = c.speed;
+        lc.lap = c.lap;
+        lc.lerpStart = p4now;
+      }
+    }
+    // Remove stale
+    for (const [id] of G.lerpCars) {
+      if (!data.cars.find(c => c.id === id)) G.lerpCars.delete(id);
+    }
+
+    // Lap detection
+    for (const c of G.cars) {
+      if (c.id === G.localId) {
+        if (prevLaps[c.id] !== undefined && c.lap > prevLaps[c.id]) {
+          SFX.lap(); triggerShake(4);
+          pushFeed('🏁 LAP ' + (c.lap + 1) + '/' + 3, 'rgba(0,204,255,.15)');
+        }
+        prevLaps[c.id] = c.lap;
+      }
+    }
+
+    updateHUD();
+  });
+
+  G.socket.on('reconnect-failed', (data) => {
+    G.reconnecting = false; localStorage.removeItem('G4_player'); showLobby(); lobbyErr.textContent = data.message || 'Reconnect failed';
+  });
+
+  G.socket.on('game-over', (data) => {
+    showGameOver(data);
+    try { window.parent.postMessage({ type: 'G4_SCORE', winner: data.winner, winnerName: data.winnerName }, '*'); } catch(e) {}
+  });
+
+  G.socket.on('error', (data) => { lobbyErr.textContent = data.message || 'Error'; });
+  G.socket.on('disconnect', () => {
+    if (G.gameState === 'playing' || G.gameState === 'waiting') {
+      G.wasDisconnected = true; G.reconnecting = true; G.reconnectTimer = 30;
+      reconnectOverlay.classList.remove('hidden'); reconnectSec.textContent = '30';
+    }
+  });
+}
+
+function updateHUD() {
+  let html = '';
+  for (const c of G.cars) {
+    const active = c.id === G.localId;
+    const lapStr = c.finished ? '🏁' : 'L' + (c.lap + 1) + '/3';
+    html += `<span class="player-score" style="opacity:${active ? 1 : 0.5}">
+      <span class="dot" style="background:${c.color || '#888'}"></span>
+      <span style="color:${active ? '#fff' : '#888'}">${lapStr}</span>
+    </span>`;
+  }
+  hudEl.innerHTML = html;
+}
+
+function showLobby() { lobby.classList.remove('hidden'); gameOver.classList.add('hidden'); reconnectOverlay.classList.add('hidden'); }
+function hideLobby() { lobby.classList.add('hidden'); }
+
+function joinGame() {
+  const name = inpName.value.trim() || 'Racer' + (Math.random() * 1000 | 0);
+  const room = inpRoom.value.trim() || 'race';
+  G.myRoom = room;
+  if (!G.socket || !G.socket.connected) { lobbyErr.textContent = 'Connecting...'; return; }
+  lobbyErr.textContent = ''; lobbyMsg.textContent = 'Joining race...';
+  G.socket.emit('join', { username: name, roomName: room });
+}
+
+function showGameOver(data) {
+  gameOver.classList.remove('hidden');
+  const won = data.winner === G.playerIndex;
+  goTitle.textContent = won ? '🏆 VICTORY!' : '💔 DEFEAT';
+  goSub.textContent = data.winnerName + ' wins!';
+  SFX.finish(); triggerShake(12);
+}
+
+// ─── Input ─────────────────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  const k = e.key.toLowerCase();
+  if (k === 'w' || k === 'arrowup') { G.keys.up = true; e.preventDefault(); }
+  if (k === 's' || k === 'arrowdown') { G.keys.down = true; e.preventDefault(); }
+  if (k === 'a' || k === 'arrowleft') { G.keys.left = true; e.preventDefault(); }
+  if (k === 'd' || k === 'arrowright') { G.keys.right = true; e.preventDefault(); }
+  if (k === ' ' && G.gameState === 'ended') { btnRematch.click(); e.preventDefault(); }
+});
+document.addEventListener('keyup', (e) => {
+  const k = e.key.toLowerCase();
+  if (k === 'w' || k === 'arrowup') { G.keys.up = false; e.preventDefault(); }
+  if (k === 's' || k === 'arrowdown') { G.keys.down = false; e.preventDefault(); }
+  if (k === 'a' || k === 'arrowleft') { G.keys.left = false; e.preventDefault(); }
+  if (k === 'd' || k === 'arrowright') { G.keys.right = false; e.preventDefault(); }
+});
+
+setInterval(() => {
+  if (G.socket && G.socket.connected && G.connected && G.gameState === 'playing') {
+    G.socket.emit('input', { up: G.keys.up, down: G.keys.down, left: G.keys.left, right: G.keys.right });
+  }
+}, 50);
+
+// ─── Render ─────────────────────────────────────────────────
+function render(now) {
+  const w = canvas.width, h = canvas.height;
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (shakeAmount > 0.5) {
+    ctx.translate((Math.random() - 0.5) * shakeAmount * 2, (Math.random() - 0.5) * shakeAmount * 2);
+    shakeAmount *= 0.88;
+  } else shakeAmount = 0;
+
+  ctx.fillStyle = '#050510';
+  ctx.fillRect(0, 0, w, h);
+
+  // ── Track ──
+  // Outer
+  ctx.beginPath();
+  ctx.moveTo(G.trackOuter[0]?.x || 0, G.trackOuter[0]?.y || 0);
+  for (let i = 1; i < G.trackOuter.length; i++) ctx.lineTo(G.trackOuter[i].x, G.trackOuter[i].y);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(20,20,40,0.6)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(68,255,136,0.2)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Inner (hole)
+  ctx.beginPath();
+  ctx.moveTo(G.trackInner[0]?.x || 0, G.trackInner[0]?.y || 0);
+  for (let i = 1; i < G.trackInner.length; i++) ctx.lineTo(G.trackInner[i].x, G.trackInner[i].y);
+  ctx.closePath();
+  ctx.fillStyle = '#050510';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(68,255,136,0.15)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Track surface (stripes)
+  ctx.strokeStyle = 'rgba(68,255,136,0.03)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < G.trackOuter.length; i++) {
+    const o = G.trackOuter[i];
+    const ii = G.trackInner[i];
+    if (o && ii) {
+      ctx.beginPath();
+      ctx.moveTo(o.x, o.y);
+      ctx.lineTo(ii.x, ii.y);
+      ctx.stroke();
+    }
+  }
+
+  // Start/finish line
+  const sfx = 450, sfy = 110;
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 4;
+  ctx.setLineDash([10, 10]);
+  ctx.beginPath();
+  ctx.moveTo(sfx + 100, sfy);
+  ctx.lineTo(sfx + 100, sfy + 40);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // ── Tire trails ──
+  for (const t of G.trails) {
+    ctx.globalAlpha = (t.life || 0) * 0.4;
+    ctx.fillStyle = t.color || '#888';
+    ctx.fillRect(t.x - 1, t.y - 1, 3, 3);
+    ctx.globalAlpha = 1;
+  }
+
+  // ── Cars (time-based lerp) ──
+  for (const [id, lc] of G.lerpCars) {
+    const t = Math.min(1, (now - lc.lerpStart) / 40);
+    lc.renderX = lc.prevX + (lc.targetX - lc.prevX) * t;
+    lc.renderY = lc.prevY + (lc.targetY - lc.prevY) * t;
+    // Angle lerp with shortest-path
+    let da = lc.targetAngle - lc.prevAngle;
+    while (da > Math.PI) da -= Math.PI * 2;
+    while (da < -Math.PI) da += Math.PI * 2;
+    lc.renderAngle = lc.prevAngle + da * t;
+
+    const isMe = id === G.localId;
+    const carLen = 22;
+    const carWid = 14;
+
+    ctx.save();
+    ctx.translate(lc.renderX, lc.renderY);
+    ctx.rotate(lc.renderAngle);
+
+    // Glow
+    ctx.shadowColor = lc.color || '#888';
+    ctx.shadowBlur = isMe ? 20 : 10;
+
+    // Car body
+    ctx.fillStyle = (lc.color || '#888') + (lc.disconnected ? '66' : (lc.finished ? '88' : 'dd'));
+    ctx.beginPath();
+    ctx.ellipse(0, 0, carLen / 2, carWid / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Highlight
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.beginPath();
+    ctx.ellipse(0, -carWid / 4, carLen / 3, carWid / 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Speed indicator
+    if (Math.abs(lc.speed) > 50) {
+      ctx.fillStyle = 'rgba(255,200,50,0.15)';
+      ctx.beginPath();
+      ctx.ellipse(-carLen / 2 - 2, 0, 4, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+
+    // Username
+    ctx.fillStyle = lc.color || '#888';
+    ctx.font = (isMe ? 'bold ' : '') + '9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(lc.username || '?', lc.renderX, lc.renderY + carWid + 14);
+
+    // Lap indicator
+    if (lc.finished) {
+      ctx.fillStyle = lc.color || '#888';
+      ctx.font = 'bold 14px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('🏁', lc.renderX, lc.renderY - carLen - 6);
+    }
+  }
+}
+
+// ─── Responsive resize ─────────────────────────────────────
+function resizeCanvas() {
+  const wrapper = document.getElementById('canvas-wrapper');
+  if (!wrapper) return;
+  const maxW = wrapper.clientWidth;
+  const maxH = wrapper.clientHeight;
+  const scale = Math.min(maxW / ARENA_W, maxH / ARENA_H);
+  const cw = Math.floor(ARENA_W * scale);
+  const ch = Math.floor(ARENA_H * scale);
+  canvas.style.width = cw + 'px';
+  canvas.style.height = ch + 'px';
+  const container = document.getElementById('canvas-container');
+  if (container) {
+    container.style.width = cw + 'px';
+    container.style.height = ch + 'px';
+  }
+}
+
+// ─── Game loop ──────────────────────────────────────────────
+function gameLoop(now) { resizeCanvas(); render(now); setTimeout(gameLoop, 2); }
+
+// ─── Reconnect ──────────────────────────────────────────────
+setInterval(() => {
+  if (G.reconnecting && G.reconnectTimer > 0) {
+    G.reconnectTimer--;
+    reconnectSec.textContent = '' + G.reconnectTimer;
+    if (G.reconnectTimer <= 0) { G.reconnecting = false; localStorage.removeItem('G4_player'); showLobby(); lobbyErr.textContent = 'Reconnect expired'; }
+  }
+  if (G.reconnecting && G.reconnectTimer > 0 && G.reconnectTimer % 3 === 0) {
+    if (!G.socket || !G.socket.connected) connect();
+  }
+}, 1000);
+
+// ─── Buttons ───────────────────────────────────────────────
+btnJoin.addEventListener('click', () => { hideLobby(); if (!G.socket || !G.socket.connected) connect(); setTimeout(joinGame, 200); });
+btnRematch.addEventListener('click', () => { gameOver.classList.add('hidden'); showLobby(); lobbyMsg.textContent = 'Join or create a new race'; });
+document.getElementById('btn-reconnect-cancel').addEventListener('click', () => { G.reconnecting = false; localStorage.removeItem('G4_player'); if (G.socket) { G.socket.disconnect(); G.socket = null; } showLobby(); lobbyErr.textContent = ''; });
+inpName.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnJoin.click(); });
+inpRoom.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnJoin.click(); });
+
+// ─── Init ──────────────────────────────────────────────────
+function init() {
+  connect();
+  lobbyMsg.textContent = 'Connected · Enter name and room to race';
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+  setTimeout(gameLoop, 2);
+  const saved = localStorage.getItem('G4_player');
+  if (saved) { try { const d = JSON.parse(saved); inpRoom.value = d.room || ''; } catch(e) {} }
+}
+init();
+</script>
+</body>
+</html>

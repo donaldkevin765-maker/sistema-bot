@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SIGNAL — G5</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#06060f;color:#fff;font-family:'Segoe UI',system-ui,Arial,sans-serif}
+canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
+
+#lobby{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;background:radial-gradient(ellipse at 50% 40%,#0f0a1a,#06060f);transition:opacity .4s,transform .4s}
+#lobby.hidden{opacity:0;transform:scale(0.96);pointer-events:none}
+#lobby h1{font-size:32px;font-weight:800;letter-spacing:4px;margin-bottom:2px;background:linear-gradient(135deg,#ff3366,#aa44ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+#lobby .sub{color:#555;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:28px}
+#lobby input{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:10px 14px;color:#fff;font-size:14px;width:220px;text-align:center;outline:none;transition:border-color .2s;margin-bottom:10px}
+#lobby input:focus{border-color:#aa44ff}
+#lobby input::placeholder{color:#444}
+#lobby button{background:linear-gradient(135deg,#ff3366,#aa44ff);border:none;border-radius:6px;padding:10px 40px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:transform .15s,box-shadow .15s;margin-top:6px;letter-spacing:1px}
+#lobby button:hover{transform:translateY(-1px);box-shadow:0 4px 25px rgba(170,68,255,.3)}
+#lobby button:active{transform:scale(0.97)}
+#lobby .status{color:#666;font-size:12px;margin-top:14px;text-align:center}
+#lobby .status.error{color:#ff4466}
+
+#hud{position:absolute;top:0;left:0;right:0;z-index:5;pointer-events:none;opacity:0;transition:opacity .5s}
+#hud.show{opacity:1}
+
+#scorebar{display:flex;align-items:center;justify-content:center;padding:6px 0;gap:10px;background:linear-gradient(180deg,rgba(6,6,15,.85),transparent)}
+#scorebar .p-item{display:flex;align-items:center;gap:6px;padding:2px 10px;border-radius:4px;background:rgba(255,255,255,.03);font-size:11px}
+#scorebar .p-item .dot{width:6px;height:6px;border-radius:50%;background:#fff}
+#scorebar .p-item .k{color:#888;font-weight:700}
+#scorebar .p-item.me{border:1px solid rgba(255,255,255,.1)}
+#scorebar .p-item.dead{opacity:.3}
+
+#kill-feed{position:absolute;top:50px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none}
+#kill-feed .kf-entry{font-size:11px;padding:3px 12px;border-radius:3px;background:rgba(255,51,102,.12);color:#ff6688;animation:kfFade 2s ease-out forwards;white-space:nowrap}
+@keyframes kfFade{0%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0;transform:translateY(-15px)}}
+
+#death-screen{position:absolute;top:0;left:0;right:0;bottom:0;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(6,6,15,.8);opacity:0;pointer-events:none;transition:opacity .3s}
+#death-screen.show{opacity:1;pointer-events:auto}
+#death-screen .ds-text{color:#ff3366;font-size:22px;font-weight:700;margin-bottom:4px}
+#death-screen .ds-sub{color:#666;font-size:13px}
+#death-screen .ds-respawn{color:#888;font-size:22px;font-weight:700;margin-top:4px}
+
+#gameover{position:absolute;top:0;left:0;right:0;bottom:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(6,6,15,.85);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .5s}
+#gameover.show{opacity:1;pointer-events:auto}
+#gameover h1{font-size:34px;font-weight:800;margin-bottom:4px;letter-spacing:1px}
+#gameover .go-sub{color:#666;font-size:13px;margin-bottom:16px}
+#gameover .go-scores{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;margin-bottom:16px}
+#gameover .go-scores .gs{text-align:center;padding:6px 16px;background:rgba(255,255,255,.03);border-radius:6px}
+#gameover .go-scores .gs .gs-name{font-size:11px;color:#666}
+#gameover .go-scores .gs .gs-kills{font-size:24px;font-weight:700}
+#gameover .go-scores .gs.winner{background:rgba(255,51,102,.1);border:1px solid rgba(255,51,102,.2)}
+#gameover button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:8px 28px;color:#fff;font-size:13px;cursor:pointer;transition:background .2s;margin-top:4px}
+#gameover button:hover{background:rgba(255,255,255,.14)}
+
+#reconnect-overlay{position:absolute;top:0;left:0;right:0;bottom:0;z-index:30;background:rgba(6,6,15,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;opacity:0;pointer-events:none;transition:opacity .3s}
+#reconnect-overlay.show{opacity:1;pointer-events:auto}
+.spinner{width:28px;height:28px;border:2px solid rgba(255,255,255,.08);border-top:2px solid #aa44ff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#reconnect-overlay .rtxt{color:#666;font-size:13px}
+#reconnect-overlay .rsec{color:#888;font-size:11px}
+
+#elim-indicator{position:absolute;bottom:80px;left:50%;transform:translateX(-50%);z-index:6;font-size:10px;color:rgba(255,255,255,.2);letter-spacing:1px;pointer-events:none;text-align:center}
+</style>
+</head>
+<body>
+
+<div id="lobby">
+  <h1>SIGNAL</h1>
+  <div class="sub">Stealth / Bluff — 4 Player FFA</div>
+  <input id="inp-name" placeholder="Codename" maxlength="10" autocomplete="off">
+  <input id="inp-room" placeholder="Room" maxlength="8" autocomplete="off" value="rm1">
+  <button id="btn-join">INFILTRATE</button>
+  <div class="status" id="lobby-status">Pick a codename and room</div>
+</div>
+
+<div id="hud">
+  <div id="scorebar"></div>
+  <div id="kill-feed"></div>
+</div>
+
+<div id="death-screen">
+  <div class="ds-text">ELIMINATED</div>
+  <div class="ds-sub">Your signal went dark</div>
+  <div class="ds-respawn" id="ds-timer">3</div>
+</div>
+
+<div id="elim-indicator">CLICK TO ELIMINATE</div>
+
+<div id="gameover">
+  <h1 id="go-title">GAME OVER</h1>
+  <div class="go-sub" id="go-sub">Winner</div>
+  <div class="go-scores" id="go-scores"></div>
+  <button id="btn-back">← Back</button>
+</div>
+
+<div id="reconnect-overlay">
+  <div class="spinner"></div>
+  <div class="rtxt">Signal lost — reconnecting...</div>
+  <div class="rsec" id="reconnect-sec">30s remaining</div>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+// SIGNAL — G5 Client
+// ═══════════════════════════════════════════════════════════════
+
+const ARENA_W = 900;
+const ARENA_H = 600;
+const PLAYER_RADIUS = 13;
+const ELIM_RADIUS = 35;
+const DECOY_RADIUS = 10;
+const STORAGE_KEY = 'g5_playerId';
+const ROOM_PREFIX = 'G5_';
+const TICK_MS = 1000 / 30;
+const PLAYER_SPEED = 150;
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+const lobby = document.getElementById('lobby');
+const hud = document.getElementById('hud');
+const scorebar = document.getElementById('scorebar');
+const killFeed = document.getElementById('kill-feed');
+const deathScreen = document.getElementById('death-screen');
+const dsTimer = document.getElementById('ds-timer');
+const gameover = document.getElementById('gameover');
+const goTitle = document.getElementById('go-title');
+const goSub = document.getElementById('go-sub');
+const goScores = document.getElementById('go-scores');
+const reconnectOverlay = document.getElementById('reconnect-overlay');
+const reconnectSec = document.getElementById('reconnect-sec');
+const lobbyStatus = document.getElementById('lobby-status');
+const inpName = document.getElementById('inp-name');
+const inpRoom = document.getElementById('inp-room');
+const btnJoin = document.getElementById('btn-join');
+const btnBack = document.getElementById('btn-back');
+const elimIndicator = document.getElementById('elim-indicator');
+
+// ─── State ──────────────────────────────────────────────────
+const G = {
+  socket: null,
+  localId: null,
+  connected: false,
+  gameState: 'waiting',
+
+  // Lerp state
+  lerpDecoys: new Map(),
+  lerpRealX: -1, lerpRealY: -1,
+  lerpRealPrevX: -1, lerpRealPrevY: -1,
+  lerpRealTargetX: -1, lerpRealTargetY: -1,
+  lerpRealStart: 0,
+
+  // From server
+  decoys: [],        // Array of { id, x, y, alive, disconnected }
+  kills: [],         // Array of { id, username, kills, alive }
+  scores: {},
+  obstacles: [],
+  particles: [],
+  elimLog: [],
+  winner: -1,
+
+  // Private (only this player)
+  realX: -1, realY: -1,
+  myKills: 0,
+  alive: true,
+  invincibleTimer: 0,
+
+  // Input
+  keys: { w: false, a: false, s: false, d: false },
+  mouseX: ARENA_W / 2,
+  mouseY: ARENA_H / 2,
+  lastElimClick: 0,
+
+  // Reconnect
+  myRoom: '',
+  reconnecting: false,
+  reconnectTimer: 0,
+  wasDisconnected: false,
+
+  // Visual
+  lastFrameTime: 0,
+  canvasW: 0,
+  canvasH: 0,
+  deathTimer: 0,
+  killFeedEntries: [],
+};
+
+// ─── Engagement (Audio + Screen Shake + Kill Feed) ────────
+const SFX = {
+  _ctx: null,
+  _init() { try { this._ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} },
+  _ensure() { if (!this._ctx) this._init(); if (this._ctx && this._ctx.state === 'suspended') this._ctx.resume(); },
+  elim() {
+    this._ensure(); if (!this._ctx) return;
+    [700, 500, 300].forEach((f, i) => {
+      const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(f, this._ctx.currentTime + i * 0.08);
+      g.gain.setValueAtTime(0.07, this._ctx.currentTime + i * 0.08);
+      g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + i * 0.08 + 0.15);
+      o.connect(g); g.connect(this._ctx.destination); o.start(this._ctx.currentTime + i * 0.08);
+      o.stop(this._ctx.currentTime + i * 0.08 + 0.15);
+    });
+  },
+  death() {
+    this._ensure(); if (!this._ctx) return;
+    const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(100, this._ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(30, this._ctx.currentTime + 0.3);
+    g.gain.setValueAtTime(0.08, this._ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + 0.3);
+    o.connect(g); g.connect(this._ctx.destination); o.start(); o.stop(this._ctx.currentTime + 0.3);
+  },
+  deny() {
+    this._ensure(); if (!this._ctx) return;
+    const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+    o.type = 'square'; o.frequency.setValueAtTime(150, this._ctx.currentTime);
+    o.frequency.setValueAtTime(100, this._ctx.currentTime + 0.1);
+    g.gain.setValueAtTime(0.04, this._ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + 0.15);
+    o.connect(g); g.connect(this._ctx.destination); o.start(); o.stop(this._ctx.currentTime + 0.15);
+  },
+  victory() {
+    this._ensure(); if (!this._ctx) return;
+    [400, 500, 600, 800].forEach((f, i) => {
+      const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(f, this._ctx.currentTime + i * 0.1);
+      g.gain.setValueAtTime(0.06, this._ctx.currentTime + i * 0.1);
+      g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + i * 0.1 + 0.18);
+      o.connect(g); g.connect(this._ctx.destination); o.start(this._ctx.currentTime + i * 0.1);
+      o.stop(this._ctx.currentTime + i * 0.1 + 0.18);
+    });
+  },
+  proximity() {
+    this._ensure(); if (!this._ctx) return;
+    const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(200, this._ctx.currentTime);
+    o.frequency.setValueAtTime(240, this._ctx.currentTime + 0.05);
+    g.gain.setValueAtTime(0.02, this._ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + 0.1);
+    o.connect(g); g.connect(this._ctx.destination); o.start(); o.stop(this._ctx.currentTime + 0.1);
+  },
+};
+let shakeAmount = 0;
+function triggerShake(v) { shakeAmount = Math.max(shakeAmount, Math.min(v, 20)); }
+
+// Kill feed overlay
+const kfEl = document.createElement('div');
+kfEl.style.cssText = 'position:absolute;top:46px;left:50%;transform:translateX(-50%);z-index:7;display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:none';
+document.body.appendChild(kfEl);
+function pushKill(text) {
+  const e = document.createElement('div');
+  e.style.cssText = `font-size:11px;padding:3px 14px;border-radius:3px;background:rgba(170,68,255,.12);color:#cc88ff;animation:kfAnim 2.2s ease-out forwards;white-space:nowrap;font-weight:600`;
+  e.textContent = text;
+  kfEl.appendChild(e);
+  setTimeout(() => e.remove(), 2400);
+}
+const kfStyle2 = document.createElement('style');
+kfStyle2.textContent = '@keyframes kfAnim{0%{opacity:0;transform:translateY(4px)}8%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0;transform:translateY(-10px)}}';
+document.head.appendChild(kfStyle2);
+
+// ─── Socket ─────────────────────────────────────────────────
+function connect() {
+  if (G.socket && G.socket.connected) return;
+
+  G.socket = io(window.location.origin, {
+    transports: ['websocket', 'polling'],
+    reconnection: false, // We handle reconnection manually
+  });
+
+  G.socket.on('connected', (data) => {
+    G.localId = data.playerId;
+    G.connected = true;
+    G.gameState = data.gameState;
+    G.wasDisconnected = false;
+    G.realX = data.realX;
+    G.realY = data.realY;
+
+    try { localStorage.setItem(STORAGE_KEY, data.playerId); } catch(e) {}
+
+    if (data.reconnected) {
+      hideReconnect();
+      G.reconnecting = false;
+      G.alive = true;
+    } else {
+      lobby.classList.add('hidden');
+      hud.classList.add('show');
+    }
+  });
+
+  G.socket.on('game-state', (data) => {
+    G.gameState = data.gameState;
+    G.decoys = data.decoys || [];
+    G.kills = data.kills || [];
+    G.scores = data.scores || {};
+    G.obstacles = data.obstacles || [];
+    G.particles = data.particles || [];
+    G.winner = data.winner != null ? data.winner : -1;
+
+    // Time-based lerp for decoys
+    const p5now = performance.now();
+    for (const d of G.decoys) {
+      if (!G.lerpDecoys.has(d.id)) {
+        G.lerpDecoys.set(d.id, { renderX: d.x, renderY: d.y, prevX: d.x, prevY: d.y, targetX: d.x, targetY: d.y, alive: d.alive, disconnected: d.disconnected, invincible: d.invincible, lerpStart: p5now });
+      } else {
+        const ld = G.lerpDecoys.get(d.id);
+        ld.prevX = ld.renderX;
+        ld.prevY = ld.renderY;
+        ld.targetX = d.x;
+        ld.targetY = d.y;
+        ld.alive = d.alive;
+        ld.disconnected = d.disconnected;
+        ld.invincible = d.invincible;
+        ld.lerpStart = p5now;
+      }
+    }
+    // Remove stale decoys
+    for (const [id] of G.lerpDecoys) {
+      if (!data.decoys.find(d => d.id === id)) G.lerpDecoys.delete(id);
+    }
+    if (data.elimLog) {
+      for (const e of data.elimLog) {
+        addKillFeedEntry(e.x, e.y);
+      }
+    }
+  });
+
+  G.socket.on('private', (data) => {
+    // Time-based lerp for own position
+    const p5now = performance.now();
+    G.lerpRealPrevX = G.lerpRealX;
+    G.lerpRealPrevY = G.lerpRealY;
+    G.lerpRealTargetX = data.realX;
+    G.lerpRealTargetY = data.realY;
+    G.lerpRealStart = p5now;
+    G.realX = data.realX;
+    G.realY = data.realY;
+    G.alive = data.alive;
+    G.invincibleTimer = data.invincibleTimer;
+
+    // Detect kill events
+    if (data.myKills > G.myKills) {
+      SFX.elim();
+      triggerShake(6);
+      pushKill('☠ TARGET NEUTRALIZED');
+    }
+    G.myKills = data.myKills;
+
+    if (!G.alive) {
+      G.deathTimer = 3;
+      deathScreen.classList.add('show');
+      SFX.death();
+      triggerShake(12);
+      pushKill('💀 SIGNAL COMPROMISED');
+    } else if (G.deathTimer > 0) {
+      G.deathTimer = 0;
+      deathScreen.classList.remove('show');
+    }
+  });
+
+  G.socket.on('game-over', (data) => {
+    showGameOver(data);
+    SFX.victory();
+    triggerShake(8);
+    try {
+      window.parent.postMessage({
+        type: 'G5_SCORE',
+        winner: data.winner,
+        winnerName: data.winnerName,
+        scores: data.scores,
+      }, '*');
+    } catch(e) {}
+  });
+
+  G.socket.on('reconnect-failed', () => {
+    G.reconnecting = false;
+    hideReconnect();
+    lobbyStatus.textContent = 'Signal lost — join a new room';
+    lobbyStatus.className = 'status error';
+    lobby.classList.remove('hidden');
+  });
+
+  G.socket.on('error', (data) => {
+    lobbyStatus.textContent = data.message || 'Error';
+    lobbyStatus.className = 'status error';
+  });
+
+  G.socket.on('disconnect', () => {
+    G.connected = false;
+    if (G.localId && G.myRoom && !G.wasDisconnected) {
+      showReconnect();
+      attemptReconnect();
+    }
+  });
+}
+
+function attemptReconnect() {
+  G.reconnecting = true;
+  G.reconnectTimer = 30;
+  const savedId = (() => { try { return localStorage.getItem(STORAGE_KEY); } catch(e) { return null; } })();
+
+  const tryIt = () => {
+    if (!G.reconnecting) return;
+    G.reconnectTimer--;
+    reconnectSec.textContent = G.reconnectTimer + 's remaining';
+    if (G.reconnectTimer <= 0) {
+      G.reconnecting = false;
+      hideReconnect();
+      lobbyStatus.textContent = 'Reconnection timed out';
+      lobbyStatus.className = 'status error';
+      lobby.classList.remove('hidden');
+      return;
+    }
+    if (G.socket && G.socket.connected && savedId && G.myRoom) {
+      G.socket.emit('reconnect-game', { playerId: savedId, roomName: G.myRoom });
+    }
+    setTimeout(tryIt, 1000);
+  };
+  setTimeout(tryIt, 500);
+}
+
+// ─── Kill Feed ──────────────────────────────────────────────
+function addKillFeedEntry(x, y) {
+  const el = document.createElement('div');
+  el.className = 'kf-entry';
+  el.textContent = '✦ ELIMINATION';
+  killFeed.appendChild(el);
+  setTimeout(() => { if (el.parentNode) el.remove(); }, 2200);
+}
+
+// ─── Input ──────────────────────────────────────────────────
+function sendInput(extra) {
+  if (!G.socket || !G.socket.connected || !G.localId) return;
+  G.socket.emit('input', {
+    w: G.keys.w, a: G.keys.a, s: G.keys.s, d: G.keys.d,
+    ...extra,
+  });
+}
+
+document.addEventListener('keydown', (e) => {
+  const k = e.key.toLowerCase();
+  if (k === 'w' || k === 'a' || k === 's' || k === 'd') {
+    G.keys[k] = true; e.preventDefault();
+    sendInput();
+  }
+  if (k === 'arrowup') { G.keys.w = true; e.preventDefault(); }
+  if (k === 'arrowdown') { G.keys.s = true; e.preventDefault(); }
+  if (k === 'arrowleft') { G.keys.a = true; e.preventDefault(); }
+  if (k === 'arrowright') { G.keys.d = true; e.preventDefault(); }
+});
+
+document.addEventListener('keyup', (e) => {
+  const k = e.key.toLowerCase();
+  if (k === 'w' || k === 'a' || k === 's' || k === 'd') {
+    G.keys[k] = false; e.preventDefault();
+    sendInput();
+  }
+  if (k === 'arrowup') { G.keys.w = false; e.preventDefault(); }
+  if (k === 'arrowdown') { G.keys.s = false; e.preventDefault(); }
+  if (k === 'arrowleft') { G.keys.a = false; e.preventDefault(); }
+  if (k === 'arrowright') { G.keys.d = false; e.preventDefault(); }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const sx = ARENA_W / rect.width;
+  const sy = ARENA_H / rect.height;
+  G.mouseX = (e.clientX - rect.left) * sx;
+  G.mouseY = (e.clientY - rect.top) * sy;
+});
+
+canvas.addEventListener('mousedown', (e) => {
+  if (e.button !== 0) return;
+  const now = Date.now();
+  if (now - G.lastElimClick < 800) return;
+  G.lastElimClick = now;
+  // Client-side cooldown, but server enforces too
+  sendInput({ action: 'eliminate', ex: G.mouseX, ey: G.mouseY });
+});
+
+// Touch
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  G.mouseX = (t.clientX - rect.left) * (ARENA_W / rect.width);
+  G.mouseY = (t.clientY - rect.top) * (ARENA_H / rect.height);
+  const now = Date.now();
+  if (now - G.lastElimClick < 800) return;
+  G.lastElimClick = now;
+  sendInput({ action: 'eliminate', ex: G.mouseX, ey: G.mouseY });
+});
+
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  G.mouseX = (t.clientX - rect.left) * (ARENA_W / rect.width);
+  G.mouseY = (t.clientY - rect.top) * (ARENA_H / rect.height);
+});
+
+// ─── Resize ────────────────────────────────────────────────
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  G.canvasW = canvas.width;
+  G.canvasH = canvas.height;
+}
+
+// ─── Render ────────────────────────────────────────────────
+function render(now) {
+  resizeCanvas();
+  const w = G.canvasW, h = G.canvasH;
+  const scale = Math.min(w / ARENA_W, h / ARENA_H);
+  const ox = (w - ARENA_W * scale) / 2;
+  const oy = (h - ARENA_H * scale) / 2;
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (shakeAmount > 0.5) {
+    ctx.translate((Math.random() - 0.5) * shakeAmount * 2, (Math.random() - 0.5) * shakeAmount * 2);
+    shakeAmount *= 0.88;
+  } else shakeAmount = 0;
+  ctx.fillStyle = '#06060f';
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.translate(ox, oy);
+  ctx.scale(scale, scale);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, ARENA_W, ARENA_H);
+  ctx.clip();
+
+  // Arena floor
+  ctx.fillStyle = '#080816';
+  ctx.fillRect(0, 0, ARENA_W, ARENA_H);
+
+  // Subtle grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.02)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= ARENA_W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, ARENA_H); ctx.stroke(); }
+  for (let y = 0; y <= ARENA_H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(ARENA_W, y); ctx.stroke(); }
+
+  // Border
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(0, 0, ARENA_W, ARENA_H);
+
+  // ── Obstacles ──
+  for (const o of G.obstacles) {
+    ctx.fillStyle = '#0c0c20';
+    ctx.fillRect(o.x, o.y, o.w, o.h);
+    ctx.strokeStyle = 'rgba(170,68,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(o.x, o.y, o.w, o.h);
+    // Edge glow
+    ctx.strokeStyle = 'rgba(170,68,255,0.03)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(o.x - 1, o.y - 1, o.w + 2, o.h + 2);
+  }
+
+  // ── Particles ──
+  for (const p of G.particles) {
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // ── Decoys (time-based lerp) ──
+  for (const [id, ld] of G.lerpDecoys) {
+    if (!ld.alive && !ld.disconnected) continue;
+    if (id === G.localId) continue;
+
+    const dT = Math.min(1, (now - ld.lerpStart) / 40);
+    ld.renderX = ld.prevX + (ld.targetX - ld.prevX) * dT;
+    ld.renderY = ld.prevY + (ld.targetY - ld.prevY) * dT;
+
+    const pulse = 0.8 + 0.2 * Math.sin(now * 0.003 + (id ? id.charCodeAt(0) : 0));
+
+    // Decoy glow
+    ctx.shadowColor = 'rgba(255,255,255,0.3)';
+    ctx.shadowBlur = 15 * pulse;
+
+    // Decoy body
+    ctx.fillStyle = ld.disconnected ? 'rgba(255,255,255,0.1)' :
+                    ld.invincible ? 'rgba(255,255,255,0.3)' :
+                    `rgba(255,255,255,${0.5 + 0.2 * pulse})`;
+    ctx.beginPath();
+    ctx.arc(ld.renderX, ld.renderY, DECOY_RADIUS, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+
+    // Decoy inner "glitch"
+    ctx.fillStyle = ld.invincible ? 'rgba(170,68,255,0.2)' : 'rgba(255,255,255,0.15)';
+    ctx.beginPath();
+    ctx.arc(ld.renderX - 2, ld.renderY - 2, DECOY_RADIUS * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ID label
+    if (!ld.disconnected) {
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      ctx.font = '7px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('◈', ld.renderX, ld.renderY + 3);
+    }
+  }
+
+  // ── Real body (time-based lerp) ──
+  const rT = Math.min(1, (now - G.lerpRealStart) / 40);
+  const renderRealX = G.lerpRealPrevX + (G.lerpRealTargetX - G.lerpRealPrevX) * rT;
+  const renderRealY = G.lerpRealPrevY + (G.lerpRealTargetY - G.lerpRealPrevY) * rT;
+  G.lerpRealX = renderRealX;
+  G.lerpRealY = renderRealY;
+  if (renderRealX >= 0 && renderRealY >= 0) {
+    const myColor = G.alive ? '#aa44ff' : 'rgba(170,68,255,0.2)';
+
+    // Ring
+    ctx.strokeStyle = G.alive ? 'rgba(170,68,255,0.25)' : 'rgba(170,68,255,0.05)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(renderRealX, renderRealY, PLAYER_RADIUS + 6, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Body
+    ctx.shadowColor = 'rgba(170,68,255,0.4)';
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = myColor;
+    ctx.beginPath();
+    ctx.arc(renderRealX, renderRealY, PLAYER_RADIUS, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Inner highlight
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = G.alive ? 'rgba(200,150,255,0.15)' : 'rgba(200,150,255,0.03)';
+    ctx.beginPath();
+    ctx.arc(renderRealX - 3, renderRealY - 3, PLAYER_RADIUS * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Invincibility shimmer
+    if (G.invincibleTimer > 0) {
+      ctx.strokeStyle = `rgba(255,255,255,${0.2 + 0.3 * Math.sin(now * 0.01)})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(renderRealX, renderRealY, PLAYER_RADIUS + 10, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // ── Elimination target reticle ──
+  ctx.strokeStyle = 'rgba(255,51,102,0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(G.mouseX, G.mouseY, ELIM_RADIUS, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(255,51,102,0.3)';
+  ctx.lineWidth = 1;
+  const cx = G.mouseX, cy = G.mouseY;
+  ctx.beginPath(); ctx.moveTo(cx - 8, cy); ctx.lineTo(cx + 8, cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, cy - 8); ctx.lineTo(cx, cy + 8); ctx.stroke();
+
+  ctx.restore(); // remove clip
+
+  // ── Respawn timer overlay ──
+  if (!G.alive && G.deathTimer > 0) {
+    G.deathTimer -= 1/60;
+    dsTimer.textContent = Math.ceil(G.deathTimer);
+    if (G.deathTimer <= 0) {
+      deathScreen.classList.remove('show');
+    }
+  }
+}
+
+// ─── Scorebar ───────────────────────────────────────────────
+function updateScorebar() {
+  if (!G.kills.length) return;
+  const sorted = [...G.kills].sort((a, b) => b.kills - a.kills);
+  let html = '';
+  for (const p of sorted) {
+    const isMe = p.id === G.localId;
+    const isDead = !p.alive;
+    const cls = (isMe ? 'p-item me' : 'p-item') + (isDead ? ' dead' : '');
+    html += `<div class="${cls}"><span class="dot"></span><span>${p.username}</span><span class="k">${p.kills}</span></div>`;
+  }
+  scorebar.innerHTML = html;
+}
+
+// ─── UI ─────────────────────────────────────────────────────
+function showReconnect() { reconnectOverlay.classList.add('show'); }
+function hideReconnect() { reconnectOverlay.classList.remove('show'); }
+
+function showGameOver(data) {
+  const winnerName = data.winnerName || 'Unknown';
+  goTitle.textContent = winnerName + ' WINS';
+  goTitle.style.background = 'linear-gradient(135deg,#ff3366,#aa44ff)';
+  goTitle.style.webkitBackgroundClip = 'text';
+  goTitle.style.webkitTextFillColor = 'transparent';
+  goSub.textContent = 'Most eliminations: ' + (data.scores[data.winner] || 0);
+
+  let html = '';
+  const sorted = Object.entries(data.scores).sort((a, b) => b[1] - a[1]);
+  for (const [id, k] of sorted) {
+    const isWinner = id == data.winner;
+    const name = G.kills.find(p => p.id === id)?.username || '???';
+    html += `<div class="gs${isWinner ? ' winner' : ''}"><div class="gs-name">${name}</div><div class="gs-kills">${k} kills</div></div>`;
+  }
+  goScores.innerHTML = html;
+  gameover.classList.add('show');
+  hud.classList.remove('show');
+}
+
+function resetUI() {
+  gameover.classList.remove('show');
+  hud.classList.remove('show');
+  deathScreen.classList.remove('show');
+  lobby.classList.remove('hidden');
+  lobbyStatus.textContent = 'Pick a codename and room';
+  lobbyStatus.className = 'status';
+  G.localId = null;
+  G.connected = false;
+  G.gameState = 'waiting';
+  G.decoys = [];
+  G.kills = [];
+  G.particles = [];
+  G.winner = -1;
+  G.alive = true;
+  G.wasDisconnected = true;
+  G.reconnecting = false;
+  G.deathTimer = 0;
+  hideReconnect();
+}
+
+// ─── Lobby ──────────────────────────────────────────────────
+btnJoin.addEventListener('click', () => {
+  const username = inpName.value.trim() || 'Ghost' + Math.floor(Math.random() * 999);
+  const roomName = inpRoom.value.trim();
+  if (!roomName) {
+    lobbyStatus.textContent = 'Enter a room code';
+    lobbyStatus.className = 'status error';
+    return;
+  }
+
+  G.myRoom = roomName;
+  G.wasDisconnected = false;
+  lobbyStatus.textContent = 'Infiltrating...';
+  lobbyStatus.className = 'status';
+
+  if (!G.socket || !G.socket.connected) {
+    connect();
+    const wait = setInterval(() => {
+      if (G.socket && G.socket.connected) {
+        clearInterval(wait);
+        G.socket.emit('join', { username, roomName });
+      }
+    }, 100);
+    setTimeout(() => clearInterval(wait), 10000);
+  } else {
+    G.socket.emit('join', { username, roomName });
+  }
+});
+
+btnBack.addEventListener('click', () => {
+  resetUI();
+  if (G.socket) { G.socket.close(); G.socket = null; }
+  G.myRoom = '';
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+});
+
+inpName.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnJoin.click(); });
+inpRoom.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnJoin.click(); });
+
+// ─── Game Loop ──────────────────────────────────────────────
+function gameLoop(timestamp) {
+  const dt = G.lastFrameTime ? Math.min((timestamp - G.lastFrameTime) / 1000, 0.05) : 1/60;
+  G.lastFrameTime = timestamp;
+
+  // Send movement input at 30Hz
+  if (timestamp - (G._lastInputSent || 0) > TICK_MS) {
+    G._lastInputSent = timestamp;
+    sendInput();
+  }
+
+  // Update scorebar at ~5Hz
+  if (!G._lastScorebarUpdate || timestamp - G._lastScorebarUpdate > 200) {
+    G._lastScorebarUpdate = timestamp;
+    updateScorebar();
+  }
+
+  render(timestamp);
+  setTimeout(gameLoop, 2);
+}
+
+// ─── Init ───────────────────────────────────────────────────
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+resetUI();
+connect();
+setTimeout(gameLoop, 2);
+
+console.log('[SIGNAL G5] Client loaded — awaiting infiltration');
+</script>
+</body>
+</html>

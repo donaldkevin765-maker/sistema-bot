@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RING OF FIRE</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #050510; color: #e0e0ff; font-family: 'Segoe UI', system-ui, sans-serif; }
+#game-container { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; }
+#canvas-wrapper { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; width: 100%; overflow: hidden; }
+#canvas-container { position: relative; }
+#gameCanvas { display: block; border-radius: 6px; cursor: crosshair; }
+#ui-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+#hud { display: flex; justify-content: center; align-items: center; gap: 16px; font-size: 14px; font-weight: 700; padding: 6px 0; flex-shrink: 0; width: 100%; max-width: 900px; }
+#hud .ps { display: flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; background: rgba(0,0,0,0.3); }
+#hud .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+#hud .hp-bar { width: 30px; height: 4px; background: #333; border-radius: 2px; overflow: hidden; }
+#hud .hp-fill { height: 100%; border-radius: 2px; transition: width 0.2s; }
+#lobby { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(5,5,16,0.92); pointer-events: auto; z-index: 10; border-radius: 6px; }
+#lobby.hidden { display: none; }
+#lobby h1 { font-size: 32px; margin-bottom: 4px; background: linear-gradient(90deg, #ff4400, #ffcc00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+#lobby p.sub { color: #888; font-size: 13px; margin-bottom: 24px; }
+#lobby input { background: #12122a; border: 1px solid #2a2a5a; color: #e0e0ff; padding: 10px 16px; border-radius: 4px; font-size: 15px; width: 240px; margin-bottom: 10px; outline: none; }
+#lobby input:focus { border-color: #ff6600; }
+#lobby button { background: linear-gradient(135deg, #ff4400, #ff8800); border: none; color: #fff; padding: 10px 28px; border-radius: 4px; font-size: 15px; font-weight: 600; cursor: pointer; margin: 4px; pointer-events: auto; }
+#lobby button:hover { transform: scale(1.03); box-shadow: 0 0 18px rgba(255,68,0,0.4); }
+#lobby .status { color: #aaa; font-size: 13px; margin-top: 12px; }
+#lobby .error { color: #ff4488; font-size: 13px; margin-top: 8px; }
+#game-over { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(5,5,16,0.85); z-index: 10; pointer-events: auto; border-radius: 6px; }
+#game-over.hidden { display: none; }
+#game-over h2 { font-size: 36px; margin-bottom: 6px; }
+#game-over .sub { color: #aaa; font-size: 15px; margin-bottom: 18px; }
+#game-over button { background: linear-gradient(135deg, #ff4400, #ff8800); border: none; color: #fff; padding: 10px 28px; border-radius: 4px; font-size: 15px; font-weight: 600; cursor: pointer; margin: 4px; pointer-events: auto; }
+#reconnect-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(5,5,16,0.9); z-index: 11; pointer-events: auto; border-radius: 6px; }
+#reconnect-overlay.hidden { display: none; }
+#reconnect-overlay h3 { font-size: 22px; margin-bottom: 6px; color: #ffcc44; }
+#reconnect-overlay .countdown { font-size: 36px; font-weight: 700; color: #ffcc44; margin: 8px 0; }
+#reconnect-overlay button { background: #3a3a6a; border: none; color: #fff; padding: 8px 20px; border-radius: 4px; font-size: 14px; cursor: pointer; margin-top: 8px; pointer-events: auto; }
+#warning { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 28px; font-weight: 900; color: #ff2200; opacity: 0.7; pointer-events: none; z-index: 5; }
+.kill-feed { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 7; display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="game-container">
+  <div id="hud"></div>
+  <div id="canvas-wrapper">
+    <div id="canvas-container">
+      <canvas id="gameCanvas" width="900" height="600"></canvas>
+      <div id="ui-overlay">
+        <div id="warning">⚠ RING SHRINKING ⚠</div>
+        <div id="lobby">
+          <h1>🔥 RING OF FIRE</h1>
+          <p class="sub">4-Player FFA · Shrinking ring · Last alive wins</p>
+          <input id="inp-name" type="text" placeholder="Your name" maxlength="16">
+          <input id="inp-room" type="text" placeholder="Room name" maxlength="20" value="room1">
+          <button id="btn-join">JOIN THE FIRE</button>
+          <div class="status" id="lobby-msg">Enter a name and room</div>
+          <div class="error" id="lobby-err"></div>
+        </div>
+        <div id="game-over" class="hidden">
+          <h2 id="go-title">🔥 VICTORY</h2>
+          <div class="sub" id="go-sub">Winner!</div>
+          <button id="btn-rematch">FIGHT AGAIN</button>
+        </div>
+        <div id="reconnect-overlay" class="hidden">
+          <h3>⚠ CONNECTION LOST</h3>
+          <p>Reconnecting...</p>
+          <div class="countdown" id="reconnect-sec">30</div>
+          <button id="btn-reconnect-cancel">NEW GAME</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const lobby = document.getElementById('lobby');
+const inpName = document.getElementById('inp-name');
+const inpRoom = document.getElementById('inp-room');
+const btnJoin = document.getElementById('btn-join');
+const lobbyMsg = document.getElementById('lobby-msg');
+const lobbyErr = document.getElementById('lobby-err');
+const gameOver = document.getElementById('game-over');
+const goTitle = document.getElementById('go-title');
+const goSub = document.getElementById('go-sub');
+const btnRematch = document.getElementById('btn-rematch');
+const reconnectOverlay = document.getElementById('reconnect-overlay');
+const reconnectSec = document.getElementById('reconnect-sec');
+const hudEl = document.getElementById('hud');
+const warningEl = document.getElementById('warning');
+
+const ARENA_W = 900, ARENA_H = 600;
+const PLAYER_RADIUS = 14;
+
+const G = {
+  socket: null, localId: null, connected: false, gameState: 'waiting', playerIndex: -1,
+  projs: [], fireParticles: [],
+  lerpPlayers: new Map(),
+  lerpProjs: new Map(),
+  ringX: 450, ringY: 300, ringRadius: 260, shrinkTimer: 0,
+  keys: { w: false, a: false, s: false, d: false },
+  mouseX: 450, mouseY: 300, shooting: false,
+  myRoom: '', reconnecting: false, reconnectTimer: 0, wasDisconnected: false,
+  prevAliveCount: 0, prevKills: 0,
+};
+
+// ─── Engagement ────────────────────────────────────────────
+const SFX = {
+  _ctx: null,
+  _init() { try { this._ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} },
+  _ensure() { if (!this._ctx) this._init(); if (this._ctx && this._ctx.state === 'suspended') this._ctx.resume(); },
+  shoot() {
+    this._ensure(); if (!this._ctx) return;
+    const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(600, this._ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(200, this._ctx.currentTime + 0.08);
+    g.gain.setValueAtTime(0.04, this._ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + 0.08);
+    o.connect(g); g.connect(this._ctx.destination); o.start(); o.stop(this._ctx.currentTime + 0.08);
+  },
+  hit() {
+    this._ensure(); if (!this._ctx) return;
+    const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(400, this._ctx.currentTime);
+    o.frequency.setValueAtTime(600, this._ctx.currentTime + 0.05);
+    g.gain.setValueAtTime(0.06, this._ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + 0.1);
+    o.connect(g); g.connect(this._ctx.destination); o.start(); o.stop(this._ctx.currentTime + 0.1);
+  },
+  elim() {
+    this._ensure(); if (!this._ctx) return;
+    [600, 400, 200].forEach((f, i) => {
+      const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(f, this._ctx.currentTime + i * 0.1);
+      g.gain.setValueAtTime(0.06, this._ctx.currentTime + i * 0.1);
+      g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + i * 0.1 + 0.15);
+      o.connect(g); g.connect(this._ctx.destination); o.start(this._ctx.currentTime + i * 0.1);
+      o.stop(this._ctx.currentTime + i * 0.1 + 0.15);
+    });
+  },
+  death() {
+    this._ensure(); if (!this._ctx) return;
+    const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(80, this._ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(20, this._ctx.currentTime + 0.4);
+    g.gain.setValueAtTime(0.07, this._ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + 0.4);
+    o.connect(g); g.connect(this._ctx.destination); o.start(); o.stop(this._ctx.currentTime + 0.4);
+  },
+  shrink() {
+    this._ensure(); if (!this._ctx) return;
+    [100, 200, 300].forEach((f, i) => {
+      const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+      o.type = 'square'; o.frequency.setValueAtTime(f, this._ctx.currentTime + i * 0.2);
+      g.gain.setValueAtTime(0.04, this._ctx.currentTime + i * 0.2);
+      g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + i * 0.2 + 0.2);
+      o.connect(g); g.connect(this._ctx.destination); o.start(this._ctx.currentTime + i * 0.2);
+      o.stop(this._ctx.currentTime + i * 0.2 + 0.2);
+    });
+  },
+  victory() {
+    this._ensure(); if (!this._ctx) return;
+    [300, 400, 500, 700, 900].forEach((f, i) => {
+      const o = this._ctx.createOscillator(), g = this._ctx.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(f, this._ctx.currentTime + i * 0.12);
+      g.gain.setValueAtTime(0.06, this._ctx.currentTime + i * 0.12);
+      g.gain.exponentialRampToValueAtTime(0.001, this._ctx.currentTime + i * 0.12 + 0.18);
+      o.connect(g); g.connect(this._ctx.destination); o.start(this._ctx.currentTime + i * 0.12);
+      o.stop(this._ctx.currentTime + i * 0.12 + 0.18);
+    });
+  },
+};
+let shakeAmount = 0;
+function triggerShake(v) { shakeAmount = Math.max(shakeAmount, Math.min(v, 20)); }
+
+const kfEl = document.createElement('div');
+kfEl.className = 'kill-feed';
+document.getElementById('canvas-container').appendChild(kfEl);
+function pushFeed(text, color) {
+  const e = document.createElement('div');
+  e.style.cssText = `font-size:11px;padding:3px 14px;border-radius:3px;background:${color || 'rgba(255,68,0,.15)'};color:#ff8844;animation:kfAnim6 2.2s ease-out forwards;white-space:nowrap;font-weight:600`;
+  e.textContent = text;
+  kfEl.appendChild(e);
+  setTimeout(() => e.remove(), 2400);
+}
+const kfStyle = document.createElement('style');
+kfStyle.textContent = '@keyframes kfAnim6{0%{opacity:0;transform:translateY(4px)}8%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0;transform:translateY(-10px)}}';
+document.head.appendChild(kfStyle);
+
+// ─── Socket ─────────────────────────────────────────────────
+function connect() {
+  if (G.socket && G.socket.connected) return;
+  G.socket = io(window.location.origin, { transports: ['websocket', 'polling'], reconnection: false });
+
+  G.socket.on('connect', () => {
+    if (G.reconnecting) {
+      const saved = localStorage.getItem('G6_player');
+      if (saved) { try { const d = JSON.parse(saved); G.socket.emit('reconnect-game', { playerId: d.pid, roomName: d.room }); } catch(e) {} }
+    }
+  });
+
+  G.socket.on('connected', (data) => {
+    G.localId = data.playerId; G.connected = true; G.gameState = data.gameState; G.playerIndex = data.playerIndex;
+    G.reconnecting = false; G.wasDisconnected = false;
+    if (G.myRoom) localStorage.setItem('G6_player', JSON.stringify({ pid: G.localId, room: G.myRoom }));
+    reconnectOverlay.classList.add('hidden');
+    if (data.reconnected) pushFeed('🔄 RECONNECTED', 'rgba(68,255,136,.15)');
+  });
+
+  let prevShrinkTimer = 0;
+  G.socket.on('game-state', (data) => {
+    if (!data) return;
+    G.gameState = data.gameState;
+    G.projs = data.projs || [];
+    G.fireParticles = data.fireParticles || [];
+    G.ringX = data.ringX || 450;
+    G.ringY = data.ringY || 300;
+    G.ringRadius = data.ringRadius || 260;
+    G.shrinkTimer = data.shrinkTimer || 0;
+
+    // Time-based lerp for players
+    const p6now = performance.now();
+    if (data.players) {
+      for (const p of data.players) {
+        if (!G.lerpPlayers.has(p.id)) {
+          G.lerpPlayers.set(p.id, { renderX: p.x, renderY: p.y, prevX: p.x, prevY: p.y, targetX: p.x, targetY: p.y, color: p.color, username: p.username, alive: p.alive, disconnected: p.disconnected, hp: p.hp, maxHp: p.maxHp, kills: p.kills, lerpStart: p6now });
+        } else {
+          const lp = G.lerpPlayers.get(p.id);
+          lp.prevX = lp.renderX;
+          lp.prevY = lp.renderY;
+          lp.targetX = p.x;
+          lp.targetY = p.y;
+          lp.color = p.color;
+          lp.username = p.username;
+          lp.alive = p.alive;
+          lp.disconnected = p.disconnected;
+          lp.hp = p.hp;
+          lp.maxHp = p.maxHp;
+          lp.kills = p.kills;
+          lp.lerpStart = p6now;
+        }
+      }
+      // Remove stale
+      for (const [id] of G.lerpPlayers) {
+        if (!data.players.find(p => p.id === id)) G.lerpPlayers.delete(id);
+      }
+    }
+
+    // Time-based lerp for projectiles
+    if (data.projs) {
+      for (const b of data.projs) {
+        if (!G.lerpProjs.has(b.id || b._idx)) {
+          const bid = b.id || b._idx || Math.random();
+          G.lerpProjs.set(bid, { renderX: b.x, renderY: b.y, prevX: b.x, prevY: b.y, targetX: b.x, targetY: b.y, lerpStart: p6now, id: bid });
+        } else {
+          const lb = G.lerpProjs.get(b.id || b._idx);
+          if (lb) {
+            lb.prevX = lb.renderX;
+            lb.prevY = lb.renderY;
+            lb.targetX = b.x;
+            lb.targetY = b.y;
+            lb.lerpStart = p6now;
+          }
+        }
+      }
+      // Remove stale projectiles
+      for (const [id, lb] of G.lerpProjs) {
+        if (!data.projs.find(b => (b.id || b._idx) === id)) G.lerpProjs.delete(id);
+      }
+    }
+
+    // Alert on shrink
+    if (prevShrinkTimer > 0 && data.shrinkTimer > prevShrinkTimer) {
+      SFX.shrink(); triggerShake(8);
+      warningEl.style.display = 'block';
+      setTimeout(() => warningEl.style.display = 'none', 1500);
+      pushFeed('🔥 RING SHRINKING', 'rgba(255,68,0,.2)');
+    }
+    if (data.shrinkTimer > 0 && data.shrinkTimer <= 3 && prevShrinkTimer > data.shrinkTimer) {
+      // Tick warning in last 3 seconds
+    }
+    prevShrinkTimer = data.shrinkTimer;
+
+    // Detect eliminations
+    const alive = data.players.filter(p => p.alive).length;
+    if (G.prevAliveCount > 0 && alive < G.prevAliveCount) {
+      SFX.elim(); triggerShake(6);
+      pushFeed('💀 PLAYER ELIMINATED', 'rgba(255,68,0,.2)');
+    }
+    G.prevAliveCount = alive;
+
+    // Detect own kills
+    const me = data.players.find(p => p.id === G.localId);
+    if (me && me.kills > G.prevKills) {
+      SFX.hit(); triggerShake(4);
+      pushFeed('⚔ ELIMINATION +1', 'rgba(255,200,0,.2)');
+    }
+    if (me) G.prevKills = me.kills;
+
+    updateHUD(data);
+  });
+
+  G.socket.on('reconnect-failed', (data) => { G.reconnecting = false; localStorage.removeItem('G6_player'); showLobby(); lobbyErr.textContent = data.message || 'Reconnect failed'; });
+  G.socket.on('game-over', (data) => { showGameOver(data); try { window.parent.postMessage({ type: 'G6_SCORE', winner: data.winner, winnerName: data.winnerName }, '*'); } catch(e) {} });
+  G.socket.on('error', (data) => { lobbyErr.textContent = data.message || 'Error'; });
+  G.socket.on('disconnect', () => {
+    if (G.gameState === 'playing' || G.gameState === 'waiting') {
+      G.wasDisconnected = true; G.reconnecting = true; G.reconnectTimer = 30;
+      reconnectOverlay.classList.remove('hidden'); reconnectSec.textContent = '30';
+    }
+  });
+}
+
+function updateHUD(data) {
+  let html = '';
+  for (const p of (data.players || [])) {
+    const isMe = p.id === G.localId;
+    const hpPct = Math.max(0, (p.hp / p.maxHp) * 100);
+    html += `<span class="ps" style="opacity:${p.alive ? 1 : 0.3}">
+      <span class="dot" style="background:${p.color || '#888'}"></span>
+      <span style="color:${isMe ? '#fff' : '#888'};font-size:11px">${p.kills || 0}</span>
+      <span class="hp-bar"><span class="hp-fill" style="width:${hpPct}%;background:${hpPct > 50 ? '#44ff88' : hpPct > 25 ? '#ffcc00' : '#ff4400'}"></span></span>
+    </span>`;
+  }
+  hudEl.innerHTML = html;
+}
+
+function showLobby() { lobby.classList.remove('hidden'); gameOver.classList.add('hidden'); reconnectOverlay.classList.add('hidden'); }
+function hideLobby() { lobby.classList.add('hidden'); }
+function joinGame() {
+  const name = inpName.value.trim() || 'Fighter' + (Math.random() * 1000 | 0);
+  const room = inpRoom.value.trim() || 'fire';
+  G.myRoom = room;
+  if (!G.socket || !G.socket.connected) { lobbyErr.textContent = 'Connecting...'; return; }
+  lobbyErr.textContent = ''; lobbyMsg.textContent = 'Entering the ring...';
+  G.socket.emit('join', { username: name, roomName: room });
+}
+function showGameOver(data) {
+  gameOver.classList.remove('hidden');
+  const won = data.winner === G.localId;
+  goTitle.textContent = won ? '🔥 VICTORY!' : '💀 ELIMINATED';
+  goSub.textContent = data.winnerName + ' is the last one standing!';
+  SFX.victory(); triggerShake(14);
+}
+
+// ─── Input ─────────────────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  const k = e.key.toLowerCase();
+  if (k === 'w') { G.keys.w = true; e.preventDefault(); }
+  if (k === 's') { G.keys.s = true; e.preventDefault(); }
+  if (k === 'a') { G.keys.a = true; e.preventDefault(); }
+  if (k === 'd') { G.keys.d = true; e.preventDefault(); }
+  if (k === ' ' && G.gameState === 'ended') { btnRematch.click(); e.preventDefault(); }
+});
+document.addEventListener('keyup', (e) => {
+  const k = e.key.toLowerCase();
+  if (k === 'w') { G.keys.w = false; e.preventDefault(); }
+  if (k === 's') { G.keys.s = false; e.preventDefault(); }
+  if (k === 'a') { G.keys.a = false; e.preventDefault(); }
+  if (k === 'd') { G.keys.d = false; e.preventDefault(); }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  G.mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+  G.mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
+});
+canvas.addEventListener('mousedown', (e) => { if (e.button === 0) { G.shooting = true; SFX.shoot(); } });
+canvas.addEventListener('mouseup', (e) => { if (e.button === 0) G.shooting = false; });
+
+setInterval(() => {
+  if (G.socket && G.socket.connected && G.connected && G.gameState === 'playing') {
+    G.socket.emit('input', { w: G.keys.w, a: G.keys.a, s: G.keys.s, d: G.keys.d, mx: G.mouseX, my: G.mouseY, shoot: G.shooting });
+    if (G.shooting) G.shooting = false; // auto-repeat handled by holding mouse
+  }
+}, 50);
+
+// ─── Render ─────────────────────────────────────────────────
+function render(now) {
+  const w = canvas.width, h = canvas.height;
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (shakeAmount > 0.5) {
+    ctx.translate((Math.random() - 0.5) * shakeAmount * 2, (Math.random() - 0.5) * shakeAmount * 2);
+    shakeAmount *= 0.88;
+  } else shakeAmount = 0;
+
+  ctx.fillStyle = '#08080f';
+  ctx.fillRect(0, 0, w, h);
+
+  // ── Fire ring ──
+  // Outer glow
+  const grd = ctx.createRadialGradient(G.ringX, G.ringY, G.ringRadius - 10, G.ringX, G.ringY, G.ringRadius + 20);
+  grd.addColorStop(0, 'rgba(255, 68, 0, 0)');
+  grd.addColorStop(0.7, 'rgba(255, 68, 0, 0.3)');
+  grd.addColorStop(0.9, 'rgba(255, 200, 0, 0.4)');
+  grd.addColorStop(1, 'rgba(255, 68, 0, 0.05)');
+  ctx.fillStyle = grd;
+  ctx.beginPath();
+  ctx.arc(G.ringX, G.ringY, G.ringRadius + 30, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Ring line
+  ctx.beginPath();
+  ctx.arc(G.ringX, G.ringY, G.ringRadius, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255, 68, 0, 0.6)';
+  ctx.lineWidth = 4;
+  ctx.shadowColor = '#ff4400';
+  ctx.shadowBlur = 20;
+  ctx.stroke();
+
+  // Inner ring
+  ctx.beginPath();
+  ctx.arc(G.ringX, G.ringY, G.ringRadius - 2, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255, 200, 0, 0.3)';
+  ctx.lineWidth = 1;
+  ctx.shadowBlur = 0;
+  ctx.stroke();
+
+  // ── Fire particles ──
+  for (const fp of G.fireParticles) {
+    const alpha = (fp.life || 0.5);
+    ctx.globalAlpha = alpha * 0.6;
+    const colors = ['#ff4400', '#ff6600', '#ffcc00', '#ff8800'];
+    ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+    ctx.beginPath();
+    ctx.arc(fp.x, fp.y, 2 + (1 - alpha) * 3, 0, Math.PI * 2);
+    ctx.shadowColor = '#ff4400';
+    ctx.shadowBlur = 6;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  }
+
+  // ── Projectiles (time-based lerp) ──
+  for (const [id, lb] of G.lerpProjs) {
+    const bT = Math.min(1, (now - lb.lerpStart) / 40);
+    lb.renderX = lb.prevX + (lb.targetX - lb.prevX) * bT;
+    lb.renderY = lb.prevY + (lb.targetY - lb.prevY) * bT;
+    ctx.beginPath();
+    ctx.arc(lb.renderX, lb.renderY, 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffcc00';
+    ctx.shadowColor = '#ff8800';
+    ctx.shadowBlur = 16;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  // ── Players (time-based lerp) ──
+  for (const [id, lp] of G.lerpPlayers) {
+    const pT = Math.min(1, (now - lp.lerpStart) / 40);
+    lp.renderX = lp.prevX + (lp.targetX - lp.prevX) * pT;
+    lp.renderY = lp.prevY + (lp.targetY - lp.prevY) * pT;
+    const isMe = id === G.localId;
+
+    if (!lp.alive) {
+      ctx.globalAlpha = 0.25;
+    }
+
+    // Body glow
+    ctx.shadowColor = lp.color || '#888';
+    ctx.shadowBlur = isMe ? 22 : 12;
+
+    ctx.beginPath();
+    ctx.arc(lp.renderX, lp.renderY, PLAYER_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = (lp.color || '#888') + (lp.disconnected ? '55' : (lp.alive ? 'dd' : '33'));
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Ring outline
+    ctx.strokeStyle = (lp.color || '#888') + (isMe ? 'aa' : '66');
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // HP bar overhead
+    if (lp.alive) {
+      const barW = 28, barH = 3;
+      const barX = lp.renderX - barW / 2, barY = lp.renderY - PLAYER_RADIUS - 8;
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(barX, barY, barW, barH);
+      const hpPct = lp.hp / lp.maxHp;
+      ctx.fillStyle = hpPct > 0.5 ? '#44ff88' : hpPct > 0.25 ? '#ffcc00' : '#ff4400';
+      ctx.fillRect(barX, barY, barW * hpPct, barH);
+    }
+
+    // Aim line (only for current player)
+    if (isMe && lp.alive) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 5]);
+      ctx.beginPath();
+      ctx.moveTo(lp.renderX, lp.renderY);
+      ctx.lineTo(G.mouseX, G.mouseY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Username
+    ctx.fillStyle = lp.color || '#888';
+    ctx.font = (isMe ? 'bold ' : '') + '9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(lp.username || '?', lp.renderX, lp.renderY + PLAYER_RADIUS + 16);
+
+    ctx.globalAlpha = 1;
+  }
+
+  // ── Shrink timer ──
+  if (G.shrinkTimer > 0 && G.shrinkTimer <= 5 && G.gameState === 'playing') {
+    ctx.fillStyle = 'rgba(255, 68, 0, 0.5)';
+    ctx.font = 'bold 18px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚡ ' + Math.ceil(G.shrinkTimer) + 's', G.ringX, G.ringY - G.ringRadius - 25);
+  }
+}
+
+// ─── Responsive resize ─────────────────────────────────────
+function resizeCanvas() {
+  const wrapper = document.getElementById('canvas-wrapper');
+  if (!wrapper) return;
+  const maxW = wrapper.clientWidth;
+  const maxH = wrapper.clientHeight;
+  const scale = Math.min(maxW / ARENA_W, maxH / ARENA_H);
+  const cw = Math.floor(ARENA_W * scale);
+  const ch = Math.floor(ARENA_H * scale);
+  canvas.style.width = cw + 'px';
+  canvas.style.height = ch + 'px';
+  const container = document.getElementById('canvas-container');
+  if (container) {
+    container.style.width = cw + 'px';
+    container.style.height = ch + 'px';
+  }
+}
+
+// ─── Game loop ──────────────────────────────────────────────
+function gameLoop(now) { resizeCanvas(); render(now); setTimeout(gameLoop, 2); }
+
+// ─── Reconnect ──────────────────────────────────────────────
+setInterval(() => {
+  if (G.reconnecting && G.reconnectTimer > 0) {
+    G.reconnectTimer--; reconnectSec.textContent = '' + G.reconnectTimer;
+    if (G.reconnectTimer <= 0) { G.reconnecting = false; localStorage.removeItem('G6_player'); showLobby(); lobbyErr.textContent = 'Reconnect expired'; }
+  }
+  if (G.reconnecting && G.reconnectTimer > 0 && G.reconnectTimer % 3 === 0) {
+    if (!G.socket || !G.socket.connected) connect();
+  }
+}, 1000);
+
+// ─── Buttons ───────────────────────────────────────────────
+btnJoin.addEventListener('click', () => { hideLobby(); if (!G.socket || !G.socket.connected) connect(); setTimeout(joinGame, 200); });
+btnRematch.addEventListener('click', () => { gameOver.classList.add('hidden'); showLobby(); lobbyMsg.textContent = 'Enter the ring again'; });
+document.getElementById('btn-reconnect-cancel').addEventListener('click', () => { G.reconnecting = false; localStorage.removeItem('G6_player'); if (G.socket) { G.socket.disconnect(); G.socket = null; } showLobby(); lobbyErr.textContent = ''; });
+inpName.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnJoin.click(); });
+inpRoom.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnJoin.click(); });
+
+// ─── Init ──────────────────────────────────────────────────
+function init() {
+  connect();
+  lobbyMsg.textContent = 'Connected · Enter the ring!';
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+  setTimeout(gameLoop, 2);
+  const saved = localStorage.getItem('G6_player');
+  if (saved) { try { const d = JSON.parse(saved); inpRoom.value = d.room || ''; } catch(e) {} }
+}
+init();
+</script>
+</body>
+</html>
