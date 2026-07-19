@@ -10,8 +10,8 @@ var angle=Math.random()*Math.PI*2;var dist=400+Math.random()*100;enemies.push({x
 function createBullet(x,y,dx,dy,isEnemy){bullets.push({x:x,y:y,dx:dx,dy:dy,life:2,isEnemy:isEnemy||false,size:isEnemy?3:4});}
 function createParticles(x,y,color,count){for(var i=0;i<(count||8);i++){particles.push({x:x,y:y,dx:(Math.random()-0.5)*6,dy:(Math.random()-0.5)*6,life:0.4+Math.random()*0.4,color:color||'#ffaa00',size:2+Math.random()*4});}}
 function spawnPowerup(x,y){var types=['health','rapid','shield'];var t=types[Math.floor(Math.random()*types.length)];powerups.push({x:x,y:y,type:t,life:8,size:8,bob:0});}
-function update(dt,input){if(state==='ready'){if(input.action){state='playing';}render(dt);return;}
-if(state==='gameover'){if(input.action){resetGame();state='playing';}render(dt);return;}
+function update(dt,input){if(state==='ready'){if(input.action){state='playing';}return;}
+if(state==='gameover'){if(input.action){resetGame();state='playing';}return;}
 gameWidth=E.width||800;gameHeight=E.height||600;
 if(!player)return;
 // Wave management
@@ -44,8 +44,8 @@ for(var pi=powerups.length-1;pi>=0;pi--){var pu=powerups[pi];pu.bob+=dt*3;pu.y+=
 if(Math.abs(pu.x-player.x)<20&&Math.abs(pu.y-player.y)<20){if(pu.type==='health'){player.hp=Math.min(player.maxHp,player.hp+2);}else if(pu.type==='rapid'){player.rapidTimer=5;}else if(pu.type==='shield'){player.shieldTimer=5;}E.playBeep(800,0.15,'sine',0.15);powerups.splice(pi,1);}}
 // Particles
 for(var pii=particles.length-1;pii>=0;pii--){var pt=particles[pii];pt.x+=pt.dx;pt.y+=pt.dy;pt.life-=dt;pt.dx*=0.96;pt.dy*=0.96;if(pt.life<=0)particles.splice(pii,1);}
-render(dt);}
-function render(dt){if(!E||!E.ctx)return;var ctx=E.ctx;
+}
+function render(ctx){if(!E||!ctx)return;
 ctx.fillStyle='#0a0a1a';ctx.fillRect(0,0,gameWidth,gameHeight);
 if(state==='ready'){ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(0,0,gameWidth,gameHeight);ctx.fillStyle='#44aaff';ctx.font='bold 36px Arial';ctx.textAlign='center';ctx.fillText('TWIN STICK FURY',gameWidth/2,gameHeight/2-30);ctx.fillStyle='#aaa';ctx.font='14px Arial';ctx.fillText('WASD Move · Mouse aim · Click shoot · Survive robot waves',gameWidth/2,gameHeight/2+10);var p=0.5+Math.sin(Date.now()*0.003)*0.5;ctx.fillStyle='#44aaff';ctx.font='bold 18px Arial';ctx.fillText('PRESS ENTER TO START',gameWidth/2,gameHeight/2+60);return;}
 if(state==='gameover'){ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(0,0,gameWidth,gameHeight);ctx.fillStyle='#ff4444';ctx.font='bold 36px Arial';ctx.textAlign='center';ctx.fillText('SYSTEM OFFLINE',gameWidth/2,gameHeight/2-20);ctx.fillStyle='#fff';ctx.font='18px Arial';ctx.fillText('Score: '+score+' | Wave: '+wave,gameWidth/2,gameHeight/2+20);ctx.fillStyle='#aaa';ctx.font='14px Arial';ctx.fillText('Press Enter to restart',gameWidth/2,gameHeight/2+50);return;}

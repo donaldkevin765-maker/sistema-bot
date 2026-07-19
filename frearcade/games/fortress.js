@@ -13,9 +13,9 @@ BUILD_SPOTS.push({x:mx+nx*40,y:my+ny*40,occupied:false});BUILD_SPOTS.push({x:mx-
 function spawnWave(){wave++;var count=WAVE_BASE+wave*2;for(var i=0;i<count;i++){var hp=10+wave*3;var spd=0.5+wave*0.05+Math.random()*0.5;var color='#ff4444';if(wave>3&&Math.random()<0.2){hp*=2;color='#8844ff';spd*=0.7;}if(wave>7&&Math.random()<0.15){hp*=4;color='#ffaa00';spd*=0.5;}
 enemies.push({pathPos:0,hp:hp,maxHp:hp,speed:spd,color:color,size:8,goldValue:5+wave});}waveTimer=3+wave*0.5;}
 function createProjectile(tower,target){projectiles.push({x:tower.x,y:tower.y,target:target,dmg:tower.dmg,speed:6,life:2,color:tower.type==='magic'?'#cc44ff':'#ffff44'});}
-function update(dt,input){if(state==='ready'){if(input.action){state='playing';spawnWave();}render(dt);return;}
-if(lives<=0){state='gameover';render(dt);return;}
-if(state==='gameover'){if(input.action){resetGame();buildPath();findBuildSpots();state='playing';spawnWave();}render(dt);return;}
+function update(dt,input){if(state==='ready'){if(input.action){state='playing';spawnWave();}return;}
+if(lives<=0){state='gameover';return;}
+if(state==='gameover'){if(input.action){resetGame();buildPath();findBuildSpots();state='playing';spawnWave();}return;}
 gameWidth=E.width||800;gameHeight=E.height||600;
 // Wave timer
 waveTimer-=dt;if(waveTimer<=0&&enemies.length===0){spawnWave();}
@@ -33,9 +33,8 @@ for(var ei=enemies.length-1;ei>=0;ei--){var e=enemies[ei];e.pathPos+=e.speed*dt;
 var idx=Math.floor(e.pathPos);var frac=e.pathPos-idx;if(idx>=pathPts.length-1){lives--;enemies.splice(ei,1);continue;}
 var p1=pathPts[idx],p2=pathPts[Math.min(idx+1,pathPts.length-1)];e.x=p1.x+(p2.x-p1.x)*frac;e.y=p1.y+(p2.y-p1.y)*frac;}
 // Particles
-for(var pii=particles.length-1;pii>=0;pii--){var pt=particles[pii];pt.x+=pt.dx;pt.y+=pt.dy;pt.life-=dt;if(pt.life<=0)particles.splice(pii,1);}
-render(dt);}
-function render(dt){if(!E||!E.ctx)return;var ctx=E.ctx;
+for(var pii=particles.length-1;pii>=0;pii--){var pt=particles[pii];pt.x+=pt.dx;pt.y+=pt.dy;pt.life-=dt;if(pt.life<=0)particles.splice(pii,1);}}
+function render(ctx){if(!E||!ctx)return;
 ctx.fillStyle='#1a2a1a';ctx.fillRect(0,0,gameWidth,gameHeight);
 // Path
 ctx.strokeStyle='#8a7a5a';ctx.lineWidth=20;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();for(var i=0;i<pathPts.length;i++){if(i===0)ctx.moveTo(pathPts[i].x,pathPts[i].y);else ctx.lineTo(pathPts[i].x,pathPts[i].y);}ctx.stroke();

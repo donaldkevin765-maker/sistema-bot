@@ -4,24 +4,24 @@
  */
 (function(){'use strict';var E;var players=[],bullets=[],powerups=[],particles=[];var state='ready',round=1,winner=null,roundTimer=0;var gameWidth=0,gameHeight=0;var NUM_PLAYERS=2;
 var PLAYER_COLORS=['#4488ff','#ff4444','#44ff44','#ffaa00'];var PLAYER_NAMES=['Blue','Red','Green','Orange'];
-var KEYS_CFG=[[{left:'ArrowLeft',right:'ArrowRight',up:'ArrowUp',down:'ArrowDown',shoot:'KeyM'}],[{left:'KeyA',right:'KeyD',up:'KeyW',down:'KeyS',shoot:'KeyF'}],[{left:'KeyJ',right:'KeyL',up:'KeyI',down:'KeyK',shoot:'KeyU'}],[{left:'KeyN',right:'KeyM',up:'Comma',down:'Period',shoot:'KeyO'}]];
+var KEYS_CFG=[{left:'ArrowLeft',right:'ArrowRight',up:'ArrowUp',down:'ArrowDown',shoot:'KeyM'},{left:'KeyA',right:'KeyD',up:'KeyW',down:'KeyS',shoot:'KeyF'},{left:'KeyJ',right:'KeyL',up:'KeyI',down:'KeyK',shoot:'KeyU'},{left:'KeyN',right:'KeyM',up:'Comma',down:'Period',shoot:'KeyO'}];
 function init(eng){E=eng;gameWidth=E.width||800;gameHeight=E.height||600;resetGame();state='ready';E.emit('gameReady',{name:'Multiplayer Mayhem'});}
 function resetGame(){round=1;winner=null;roundTimer=0;players=[];bullets=[];powerups=[];particles=[];NUM_PLAYERS=2;createPlayers();}
 function createPlayers(){for(var i=0;i<NUM_PLAYERS;i++){var angle=i/NUM_PLAYERS*Math.PI*2+Math.PI/4;players.push({x:gameWidth/2+Math.cos(angle)*150,y:gameHeight/2+Math.sin(angle)*150,vx:0,vy:0,w:16,h:16,hp:5,maxHp:5,color:PLAYER_COLORS[i],name:PLAYER_NAMES[i],index:i,keys:KEYS_CFG[i],fireTimer:0,invincibleTimer:0,alive:true,angle:0});}}
 function createBullet(x,y,dx,dy,owner){bullets.push({x:x,y:y,dx:dx,dy:dy,owner:owner,life:3});}
 function createParticles(x,y,color,count){for(var i=0;i<(count||8);i++){particles.push({x:x,y:y,dx:(Math.random()-0.5)*7,dy:(Math.random()-0.5)*7,life:0.3+Math.random()*0.4,color:color,size:3+Math.random()*3});}}
 function spawnPowerup(){var types=['health','speed'];var t=types[Math.floor(Math.random()*types.length)];powerups.push({x:50+Math.random()*(gameWidth-100),y:50+Math.random()*(gameHeight-100),type:t,life:10});}
-function update(dt,input){if(state==='ready'){if(input.action||input.keysPressed['Enter']){state='playing';}render(dt);return;}
-if(state==='gameover'){if(input.action||input.keysPressed['Enter']){resetGame();state='playing';}render(dt);return;}
+function update(dt,input){if(state==='ready'){if(input.action||input.keysPressed['Enter']){state='playing';}return;}
+if(state==='gameover'){if(input.action||input.keysPressed['Enter']){resetGame();state='playing';}return;}
 gameWidth=E.width||800;gameHeight=E.height||600;
 roundTimer+=dt;
 // Count alive
 var alive=0,lastAlive=null;for(var pi=0;pi<players.length;pi++){if(players[pi].alive){alive++;lastAlive=players[pi];}}
-if(alive<=1&&players.length>0){winner=lastAlive;state='gameover';E.playBeep(500,0.3,'square',0.2);render(dt);return;}
-if(roundTimer>60){round++;roundTimer=0;for(var ri=0;ri<players.length;ri++){players[ri].alive=true;players[ri].hp=players[ri].maxHp;}render(dt);}
+if(alive<=1&&players.length>0){winner=lastAlive;state='gameover';E.playBeep(500,0.3,'square',0.2);return;}
+if(roundTimer>60){round++;roundTimer=0;for(var ri=0;ri<players.length;ri++){players[ri].alive=true;players[ri].hp=players[ri].maxHp;}}
 // Each player
 for(var pi=0;pi<players.length;pi++){var p=players[pi];if(!p.alive)continue;
-var keys=p.keys[0];var dx=0,dy=0;
+var keys=p.keys;var dx=0,dy=0;
 if(input.keys[keys.left])dx-=1;if(input.keys[keys.right])dx+=1;if(input.keys[keys.up])dy-=1;if(input.keys[keys.down])dy+=1;
 if(dx!==0&&dy!==0){dx*=0.707;dy*=0.707;}
 p.vx=dx*3;p.vy=dy*3;
@@ -42,8 +42,8 @@ for(var pi4=0;pi4<players.length;pi4++){var p4=players[pi4];if(!p4.alive)continu
 if(Math.random()<0.005&&powerups.length<3){spawnPowerup();}
 // Particles
 for(var pii=particles.length-1;pii>=0;pii--){var pt=particles[pii];pt.x+=pt.dx;pt.y+=pt.dy;pt.life-=dt;pt.dx*=0.95;pt.dy*=0.95;if(pt.life<=0)particles.splice(pii,1);}
-render(dt);}
-function render(dt){if(!E||!E.ctx)return;var ctx=E.ctx;
+}
+function render(ctx){if(!E||!ctx)return;
 ctx.fillStyle='#0a0a1a';ctx.fillRect(0,0,gameWidth,gameHeight);
 // Arena border
 ctx.strokeStyle='#4466aa';ctx.lineWidth=3;ctx.strokeRect(10,10,gameWidth-20,gameHeight-20);
