@@ -249,7 +249,7 @@ html, body {
   </div> <!-- end canvas-wrapper -->
 </div> <!-- end game-container -->
 
-<script src="/socket.io/socket.io.js"></script>
+<script src="/g2/socket.io/socket.io.js"></script>
 <script>
 // ─── DOM refs ─────────────────────────────────────────────────
 const canvas = document.getElementById('gameCanvas');
@@ -396,7 +396,8 @@ document.head.appendChild(kfStyle);
 function connect() {
   if (G.socket && G.socket.connected) return;
 
-  G.socket = io(window.location.origin, {
+  G.socket = io('/', {
+    path: '/g2/socket.io',
     transports: ['websocket', 'polling'],
     reconnection: false,
   });

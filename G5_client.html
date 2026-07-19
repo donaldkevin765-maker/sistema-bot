@@ -103,7 +103,7 @@ canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
 
 <canvas id="canvas"></canvas>
 
-<script src="/socket.io/socket.io.js"></script>
+<script src="/g5/socket.io/socket.io.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════════
 // SIGNAL — G5 Client
@@ -267,7 +267,8 @@ document.head.appendChild(kfStyle2);
 function connect() {
   if (G.socket && G.socket.connected) return;
 
-  G.socket = io(window.location.origin, {
+  G.socket = io('/', {
+    path: '/g5/socket.io',
     transports: ['websocket', 'polling'],
     reconnection: false, // We handle reconnection manually
   });
