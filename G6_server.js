@@ -438,7 +438,8 @@ io.on('connection', (socket) => {
   });
 
   socket.on('join', (data) => {
-    if (!data || !data.username || !data.roomName) { socket.emit('error', { message: 'Name and room required' }); return; }
+    if (!data || !data.username) { socket.emit('error', { message: 'Name required' }); return; }
+    if (!data.roomName) data.roomName = 'room1';
     const room = getOrCreateRoom(data.roomName);
     if (room.players.size >= MAX_PLAYERS) { socket.emit('error', { message: 'Room full (max 4)' }); return; }
     if (room.state !== 'waiting') { socket.emit('error', { message: 'Game in progress' }); return; }

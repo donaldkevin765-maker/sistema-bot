@@ -14,6 +14,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const { BotManager, SkillTracker } = require('./G1_bot.js');
 
 // ─── Constants ───────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
@@ -114,13 +115,16 @@ class GameRoom {
     this.winner = -1;
     this._endedAt = 0;
     this._startTimer = null;
+    this.maxPlayers = MAX_PLAYERS;
+    this.botManager = null;
+    this._playerSurvivalStart = new Map(); // playerId → start time (for skill tracking)
     // Reconnect map: oldPlayerId → { player, timer } for cleanup
     this._disconnectedTimers = new Map();
   }
 
   // ── Player management ──
 
-  addPlayer(id, username) {
+  addPlayer(id, username, isBot = false) {
     // Return existing player if already in room (duplicate join guard)
     if (this.players.has(id)) return this.players.get(id);
 
@@ -149,20 +153,10 @@ class GameRoom {
       lastAttackTime: 0,
       disconnected: false,
       disconnectTimer: 0,
+      isBot,
     };
 
     this.players.set(id, player);
-
-    // Auto-start when room is full
-    if (this.players.size === MAX_PLAYERS && this.state === 'waiting') {
-      if (this._startTimer) { clearTimeout(this._startTimer); this._startTimer = null; }
-      this._startGame();
-    } else if (this.players.size >= 2 && this.state === 'waiting' && !this._startTimer) {
-      this._startTimer = setTimeout(() => {
-        if (this.state === 'waiting' && this.players.size >= 2) this._startGame();
-        this._startTimer = null;
-      }, 12000);
-    }
 
     return player;
   }
@@ -181,11 +175,21 @@ class GameRoom {
       if (alive0 === 0) this._endGame(1);
       else if (alive1 === 0) this._endGame(0);
     }
+
+    // Notify bot manager
+    if (this.botManager) {
+      this.botManager.unregisterPlayer(id);
+    }
   }
 
   handleDisconnect(id) {
     const p = this.players.get(id);
     if (!p) return;
+    if (p.isBot) {
+      // Bots disconnect immediately, no reconnect window
+      this.removePlayer(id);
+      return;
+    }
     p.disconnected = true;
     p.disconnectTimer = RECONNECT_SEC;
     this._disconnectedTimers.set(id, RECONNECT_SEC);
@@ -203,6 +207,26 @@ class GameRoom {
     this.players.set(newId, p);
     this._disconnectedTimers.delete(oldId);
     return p;
+  }
+
+  startIfReady() {
+    if (this.state !== 'waiting') return;
+    if (this.players.size < 2) return;
+
+    // Avvia solo se tutti gli slot hanno un giocatore (umano + bot)
+    // oppure se sono passati 3 secondi da quando l'ultimo umano si è unito
+    if (this.players.size >= this.maxPlayers || this._forceStartReady) {
+      if (this._startTimer) { clearTimeout(this._startTimer); this._startTimer = null; }
+      this._startGame();
+    } else if (!this._startTimer) {
+      // Timer di sicurezza: dopo 8 secondi parte comunque se ci sono almeno 2 giocatori
+      this._startTimer = setTimeout(() => {
+        this._startTimer = null;
+        if (this.state === 'waiting' && this.players.size >= 2) {
+          this._startGame();
+        }
+      }, 8000);
+    }
   }
 
   // ── Input ──
@@ -252,6 +276,7 @@ class GameRoom {
     this.capturePoints.forEach(cp => { cp.progress = 0; cp.owner = -1; });
     this.projectiles.releaseAll();
     let idx0 = 0, idx1 = 0;
+    const now = Date.now();
     this.players.forEach(p => {
       p.hp = MAX_HP;
       p.alive = true;
@@ -267,13 +292,36 @@ class GameRoom {
         p.y = 250 + idx1 * 60;
         idx1++;
       }
+      // Track survival start
+      this._playerSurvivalStart.set(p.id, now);
     });
+    // Ricalibra bot all'inizio della partita
+    if (this.botManager) this.botManager.recalibrate();
   }
 
   _endGame(team) {
     this.state = 'ended';
     this.winner = team;
     this._endedAt = Date.now();
+
+    // Skill tracking per giocatori umani
+    const now = Date.now();
+    this.players.forEach(p => {
+      if (p.isBot) return;
+      const start = this._playerSurvivalStart.get(p.id);
+      const survivalTime = start ? (now - start) / 1000 : 0;
+      skillTracker.recordEvent(p.id, 'game_end', { survivalTime });
+    });
+    this._playerSurvivalStart.clear();
+
+    // Dopo la partita, programma nuovo riempimento
+    if (this.botManager) {
+      setTimeout(() => {
+        if (this.state === 'ended') {
+          this.botManager.recalibrate();
+        }
+      }, 2000);
+    }
   }
 
   _checkWinCondition() {
@@ -325,11 +373,28 @@ class GameRoom {
         if (dx * dx + dy * dy < (PLAYER_RADIUS + PROJ_RADIUS) ** 2) {
           p.hp -= PROJ_DAMAGE;
           p.lastDmgTime = Date.now() / 1000;
+
+          // Skill tracking: chi ha sparato ha colpito
+          const shooter = this.players.get(b.ownerId);
+          if (shooter && !shooter.isBot) {
+            skillTracker.recordEvent(shooter.id, 'hit', { damage: PROJ_DAMAGE });
+          }
+          if (p.isBot) {
+            // Bot ha subito danno
+          }
+
           this.projectiles.release(b);
           if (p.hp <= 0) {
             p.hp = 0;
             p.alive = false;
             p.respawnTimer = RESPAWN_TIME;
+            // Skill tracking kill
+            if (shooter && !shooter.isBot) {
+              skillTracker.recordEvent(shooter.id, 'kill');
+            }
+            if (!p.isBot) {
+              skillTracker.recordEvent(p.id, 'death');
+            }
           }
           return; // projectile consumed
         }
@@ -384,7 +449,18 @@ class GameRoom {
           if (cp.progress <= 0) { cp.progress = 0; cp.owner = -1; }
         } else {
           cp.progress = Math.min(1, cp.progress + speed * dt);
-          if (cp.progress >= 1) { cp.progress = 1; cp.owner = 0; }
+          if (cp.progress >= 1) {
+            cp.progress = 1; cp.owner = 0;
+            // Track capture for nearby human players
+            this.players.forEach(pp => {
+              if (!pp.isBot) {
+                const ddx = pp.x - cp.x, ddy = pp.y - cp.y;
+                if (ddx * ddx + ddy * ddy < CAPTURE_RADIUS * CAPTURE_RADIUS) {
+                  skillTracker.recordEvent(pp.id, 'capture');
+                }
+              }
+            });
+          }
         }
       }
 
@@ -397,7 +473,18 @@ class GameRoom {
           if (cp.progress <= 0) { cp.progress = 0; cp.owner = -1; }
         } else {
           cp.progress = Math.min(1, cp.progress + speed * dt);
-          if (cp.progress >= 1) { cp.progress = 1; cp.owner = 1; }
+          if (cp.progress >= 1) {
+            cp.progress = 1; cp.owner = 1;
+            // Track capture for nearby human players
+            this.players.forEach(pp => {
+              if (!pp.isBot) {
+                const ddx = pp.x - cp.x, ddy = pp.y - cp.y;
+                if (ddx * ddx + ddy * ddy < CAPTURE_RADIUS * CAPTURE_RADIUS) {
+                  skillTracker.recordEvent(pp.id, 'capture');
+                }
+              }
+            });
+          }
         }
       }
     }
@@ -430,6 +517,7 @@ class GameRoom {
         maxHp: p.maxHp,
         alive: p.alive,
         disconnected: p.disconnected,
+        isBot: !!p.isBot,
       });
     });
 
@@ -457,11 +545,14 @@ class GameRoom {
 
 // ─── Room Manager ──────────────────────────────────────────
 const rooms = new Map();
+const skillTracker = new SkillTracker();
 
 function getOrCreateRoom(roomName) {
   const fullId = ROOM_PREFIX + roomName;
   if (!rooms.has(fullId)) {
-    rooms.set(fullId, new GameRoom(fullId));
+    const room = new GameRoom(fullId);
+    room.botManager = new BotManager(room, skillTracker);
+    rooms.set(fullId, room);
   }
   return rooms.get(fullId);
 }
@@ -522,10 +613,11 @@ io.on('connection', (socket) => {
 
   // ── Join room ──
   socket.on('join', (data) => {
-    if (!data || !data.username || !data.roomName) {
-      socket.emit('error', { message: 'Username and room name required' });
+    if (!data || !data.username) {
+      socket.emit('error', { message: 'Username required' });
       return;
     }
+    if (!data.roomName) data.roomName = 'room1';
     const room = getOrCreateRoom(data.roomName);
 
     if (room.players.size >= MAX_PLAYERS) {
@@ -555,6 +647,11 @@ io.on('connection', (socket) => {
     });
 
     io.to(room.id).emit('game-state', room.getState());
+
+    // Registra l'umano e riempi con bot
+    if (room.botManager) {
+      room.botManager.registerHuman(socket.id);
+    }
   });
 
   // ── Input (lightweight: only keys + mouse + shoot) ──
@@ -568,13 +665,23 @@ io.on('connection', (socket) => {
     if (currentRoom) {
       currentRoom.handleDisconnect(socket.id);
       io.to(currentRoom.id).emit('game-state', currentRoom.getState());
+      if (currentRoom.botManager) {
+        currentRoom.botManager.unregisterPlayer(socket.id);
+        currentRoom.botManager.scheduleBotFill();
+      }
     }
   });
 });
 
 // ─── Game Loop (30 Hz) ─────────────────────────────────────
 setInterval(() => {
+  const now = Date.now();
   for (const room of rooms.values()) {
+    // Bot AI si attiva prima del game update
+    if (room.botManager) {
+      room.botManager.update(now);
+    }
+
     room.update();
 
     if (room.state === 'playing') {
