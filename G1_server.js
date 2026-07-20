@@ -176,8 +176,8 @@ class GameRoom {
       else if (alive1 === 0) this._endGame(0);
     }
 
-    // Notify bot manager
-    if (this.botManager) {
+    // Notify bot manager (solo per umani — i bot si auto-gestiscono)
+    if (this.botManager && p && !p.isBot) {
       this.botManager.unregisterPlayer(id);
     }
   }
@@ -323,12 +323,15 @@ class GameRoom {
     setTimeout(() => {
       if (this.state !== 'ended') return;
       if (this.botManager) this.botManager.clear();
+      // Pulisci timer pendenti
+      if (this._startTimer) { clearTimeout(this._startTimer); this._startTimer = null; }
       // Resetta la stanza per nuove partite
       this.state = 'waiting';
       this.scores = [0, 0];
       this.winner = -1;
       this._notified = false;
       this._endedAt = 0;
+      this._forceStartReady = false;
       this.projectiles.releaseAll();
       console.log(`[G1] Room ${this.id} reset to waiting`);
     }, 3000);
@@ -389,8 +392,9 @@ class GameRoom {
           if (shooter && !shooter.isBot) {
             skillTracker.recordEvent(shooter.id, 'hit', { damage: PROJ_DAMAGE });
           }
-          if (p.isBot) {
-            // Bot ha subito danno
+          // Track damage subito (se umano)
+          if (!p.isBot) {
+            skillTracker.recordEvent(p.id, 'damage_taken', { damage: PROJ_DAMAGE });
           }
 
           this.projectiles.release(b);

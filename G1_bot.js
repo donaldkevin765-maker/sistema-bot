@@ -318,15 +318,6 @@ class G1BotManager extends BotManager {
   getBotNames() {
     return BOT_NAMES_G1;
   }
-
-  // Hook: dopo aver aggiunto bot, controlla se la stanza è piena per far partire
-  addBot() {
-    const id = super.addBot();
-    if (id && typeof this.room.startIfReady === 'function') {
-      this.room.startIfReady();
-    }
-    return id;
-  }
 }
 
 // Esporta anche G1BotBrain per test
