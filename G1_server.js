@@ -14,7 +14,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
-const { BotManager, SkillTracker } = require('./G1_bot.js');
+const { G1BotManager, SkillTracker } = require('./G1_bot.js');
 
 // ─── Constants ───────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
@@ -561,7 +561,7 @@ function getOrCreateRoom(roomName) {
   const fullId = ROOM_PREFIX + roomName;
   if (!rooms.has(fullId)) {
     const room = new GameRoom(fullId);
-    room.botManager = new BotManager(room, skillTracker);
+    room.botManager = new G1BotManager(room, skillTracker);
     rooms.set(fullId, room);
   }
   return rooms.get(fullId);
