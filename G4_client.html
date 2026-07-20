@@ -50,9 +50,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #050510; c
       <h1>🏁 VOID RACERS</h1>
       <p class="sub">4-Player Racing · 3 laps to win</p>
       <input id="inp-name" type="text" placeholder="Your name" maxlength="16">
-      <input id="inp-room" type="text" placeholder="Room name" maxlength="20" value="room1">
-      <button id="btn-join">JOIN RACE</button>
-      <div class="status" id="lobby-msg">Enter a name and room</div>
+      <button id="btn-join">GIOCA</button>
+      <div class="status" id="lobby-msg">Inserisci nome e gioca</div>
       <div class="error" id="lobby-err"></div>
     </div>
     <div id="game-over" class="hidden">
@@ -76,7 +75,6 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const lobby = document.getElementById('lobby');
 const inpName = document.getElementById('inp-name');
-const inpRoom = document.getElementById('inp-room');
 const btnJoin = document.getElementById('btn-join');
 const lobbyMsg = document.getElementById('lobby-msg');
 const lobbyErr = document.getElementById('lobby-err');
@@ -259,7 +257,7 @@ function hideLobby() { lobby.classList.add('hidden'); }
 
 function joinGame() {
   const name = inpName.value.trim() || 'Racer' + (Math.random() * 1000 | 0);
-  const room = inpRoom.value.trim() || 'race';
+  const room = 'room1';
   G.myRoom = room;
   if (!G.socket || !G.socket.connected) { lobbyErr.textContent = 'Connecting...'; return; }
   lobbyErr.textContent = ''; lobbyMsg.textContent = 'Joining race...';
@@ -463,10 +461,10 @@ setInterval(() => {
 
 // ─── Buttons ───────────────────────────────────────────────
 btnJoin.addEventListener('click', () => { hideLobby(); if (!G.socket || !G.socket.connected) connect(); setTimeout(joinGame, 200); });
-btnRematch.addEventListener('click', () => { gameOver.classList.add('hidden'); showLobby(); lobbyMsg.textContent = 'Join or create a new race'; });
+btnRematch.addEventListener('click', () => { gameOver.classList.add('hidden'); showLobby(); lobbyMsg.textContent = 'Inserisci nome e gioca'; });
 document.getElementById('btn-reconnect-cancel').addEventListener('click', () => { G.reconnecting = false; localStorage.removeItem('G4_player'); if (G.socket) { G.socket.disconnect(); G.socket = null; } showLobby(); lobbyErr.textContent = ''; });
 inpName.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnJoin.click(); });
-inpRoom.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnJoin.click(); });
+
 
 // ─── Init ──────────────────────────────────────────────────
 function init() {
@@ -476,7 +474,7 @@ function init() {
   window.addEventListener('resize', resizeCanvas);
   setTimeout(gameLoop, 2);
   const saved = localStorage.getItem('G4_player');
-  if (saved) { try { const d = JSON.parse(saved); inpRoom.value = d.room || ''; } catch(e) {} }
+
 }
 init();
 </script>

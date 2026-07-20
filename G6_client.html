@@ -53,10 +53,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #050510; c
         <div id="lobby">
           <h1>🔥 RING OF FIRE</h1>
           <p class="sub">4-Player FFA · Shrinking ring · Last alive wins</p>
-          <input id="inp-name" type="text" placeholder="Your name" maxlength="16">
-          <input id="inp-room" type="text" placeholder="Room name" maxlength="20" value="room1">
-          <button id="btn-join">JOIN THE FIRE</button>
-          <div class="status" id="lobby-msg">Enter a name and room</div>
+      <input id="inp-name" type="text" placeholder="Your name" maxlength="16">
+      <button id="btn-join">GIOCA</button>
+          <div class="status" id="lobby-msg">Inserisci nome e gioca</div>
           <div class="error" id="lobby-err"></div>
         </div>
         <div id="game-over" class="hidden">
@@ -80,7 +79,6 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const lobby = document.getElementById('lobby');
 const inpName = document.getElementById('inp-name');
-const inpRoom = document.getElementById('inp-room');
 const btnJoin = document.getElementById('btn-join');
 const lobbyMsg = document.getElementById('lobby-msg');
 const lobbyErr = document.getElementById('lobby-err');
@@ -333,7 +331,7 @@ function showLobby() { lobby.classList.remove('hidden'); gameOver.classList.add(
 function hideLobby() { lobby.classList.add('hidden'); }
 function joinGame() {
   const name = inpName.value.trim() || 'Fighter' + (Math.random() * 1000 | 0);
-  const room = inpRoom.value.trim() || 'fire';
+  const room = 'room1';
   G.myRoom = room;
   if (!G.socket || !G.socket.connected) { lobbyErr.textContent = 'Connecting...'; return; }
   lobbyErr.textContent = ''; lobbyMsg.textContent = 'Entering the ring...';
@@ -554,7 +552,7 @@ btnJoin.addEventListener('click', () => { hideLobby(); if (!G.socket || !G.socke
 btnRematch.addEventListener('click', () => { gameOver.classList.add('hidden'); showLobby(); lobbyMsg.textContent = 'Enter the ring again'; });
 document.getElementById('btn-reconnect-cancel').addEventListener('click', () => { G.reconnecting = false; localStorage.removeItem('G6_player'); if (G.socket) { G.socket.disconnect(); G.socket = null; } showLobby(); lobbyErr.textContent = ''; });
 inpName.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnJoin.click(); });
-inpRoom.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnJoin.click(); });
+
 
 // ─── Init ──────────────────────────────────────────────────
 function init() {
@@ -564,7 +562,7 @@ function init() {
   window.addEventListener('resize', resizeCanvas);
   setTimeout(gameLoop, 2);
   const saved = localStorage.getItem('G6_player');
-  if (saved) { try { const d = JSON.parse(saved); inpRoom.value = d.room || ''; } catch(e) {} }
+
 }
 init();
 </script>

@@ -69,9 +69,8 @@ canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
 <div id="lobby">
   <h1>SIGNAL</h1>
   <div class="sub">Stealth / Bluff — 4 Player FFA</div>
-  <input id="inp-name" placeholder="Codename" maxlength="10" autocomplete="off">
-  <input id="inp-room" placeholder="Room" maxlength="8" autocomplete="off" value="rm1">
-  <button id="btn-join">INFILTRATE</button>
+<input id="inp-name" placeholder="Codename" maxlength="10" autocomplete="off">
+<button id="btn-join">GIOCA</button>
   <div class="status" id="lobby-status">Pick a codename and room</div>
 </div>
 
@@ -136,7 +135,6 @@ const reconnectOverlay = document.getElementById('reconnect-overlay');
 const reconnectSec = document.getElementById('reconnect-sec');
 const lobbyStatus = document.getElementById('lobby-status');
 const inpName = document.getElementById('inp-name');
-const inpRoom = document.getElementById('inp-room');
 const btnJoin = document.getElementById('btn-join');
 const btnBack = document.getElementById('btn-back');
 const elimIndicator = document.getElementById('elim-indicator');
@@ -742,13 +740,7 @@ function resetUI() {
 // ─── Lobby ──────────────────────────────────────────────────
 btnJoin.addEventListener('click', () => {
   const username = inpName.value.trim() || 'Ghost' + Math.floor(Math.random() * 999);
-  const roomName = inpRoom.value.trim();
-  if (!roomName) {
-    lobbyStatus.textContent = 'Enter a room code';
-    lobbyStatus.className = 'status error';
-    return;
-  }
-
+  const roomName = 'room1';
   G.myRoom = roomName;
   G.wasDisconnected = false;
   lobbyStatus.textContent = 'Infiltrating...';
@@ -776,7 +768,7 @@ btnBack.addEventListener('click', () => {
 });
 
 inpName.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnJoin.click(); });
-inpRoom.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnJoin.click(); });
+
 
 // ─── Game Loop ──────────────────────────────────────────────
 function gameLoop(timestamp) {

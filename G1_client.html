@@ -85,9 +85,8 @@ canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
   <h1>NEON CONQUEST</h1>
   <div class="sub">2v2 Capture Point Arena</div>
   <input id="inp-name" placeholder="Your name" maxlength="12" autocomplete="off">
-  <input id="inp-room" placeholder="Room code" maxlength="8" autocomplete="off" value="room1">
-  <button id="btn-join">JOIN</button>
-  <div class="status" id="lobby-status">Enter a name and room to play</div>
+  <button id="btn-join">GIOCA</button>
+  <div class="status" id="lobby-status">Inserisci nome e gioca</div>
 </div>
 
 <!-- HUD -->
@@ -252,7 +251,6 @@ const reconnectOverlay = document.getElementById('reconnect-overlay');
 const reconnectSec = document.getElementById('reconnect-sec');
 const lobbyStatus = document.getElementById('lobby-status');
 const inpName = document.getElementById('inp-name');
-const inpRoom = document.getElementById('inp-room');
 const btnJoin = document.getElementById('btn-join');
 const btnBack = document.getElementById('btn-back');
 const score0 = document.getElementById('score0');
@@ -1060,7 +1058,7 @@ function resetUI() {
   gameover.classList.remove('show');
   hud.classList.remove('show');
   lobby.classList.remove('hidden');
-  lobbyStatus.textContent = 'Enter a name and room to play';
+  lobbyStatus.textContent = 'Inserisci nome e gioca';
   lobbyStatus.className = 'status';
   G.players = {};
   G.projectiles = [];
@@ -1109,13 +1107,7 @@ function gameLoop(timestamp) {
 // ═══════════════════════════════════════════════════════════════
 btnJoin.addEventListener('click', () => {
   const username = inpName.value.trim() || 'Player' + Math.floor(Math.random() * 999);
-  const roomName = inpRoom.value.trim();
-  if (!roomName) {
-    lobbyStatus.textContent = 'Enter a room code';
-    lobbyStatus.className = 'status error';
-    return;
-  }
-
+  const roomName = 'room1';
   G.myRoom = roomName;
   G.wasDisconnected = false;
   lobbyStatus.textContent = 'Connecting...';
@@ -1149,7 +1141,7 @@ btnBack.addEventListener('click', () => {
 
 // Allow Enter to join
 inpName.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnJoin.click(); });
-inpRoom.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnJoin.click(); });
+
 
 // ═══════════════════════════════════════════════════════════════
 // 10. INIT

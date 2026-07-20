@@ -89,23 +89,17 @@ server.listen(GATEWAY_PORT, () => {
 });
 
 function renderHomepage() {
-  let cards = '';
+  let items = '';
   for (const [id, g] of Object.entries(GAMES)) {
-    cards += `<a href="/${id}/" class="card" style="--ac: ${id === 'g1' ? '#4488ff' : id === 'g2' ? '#44ff88' : id === 'g3' ? '#ff66cc' : id === 'g4' ? '#00ccff' : id === 'g5' ? '#ffaa00' : '#ff4400'}"><span class="num">${id.toUpperCase()}</span><span class="title">${g.name}</span></a>`;
+    items += `<a href="/${id}/">${g.name}</a>`;
   }
   return `<!DOCTYPE html>
 <html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Giochi</title><style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#050510;color:#e0e0ff;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
-h1{font-size:28px;margin-bottom:4px;background:linear-gradient(90deg,#4488ff,#44ff88,#ff66cc,#00ccff,#ffaa00,#ff4400);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-p.sub{color:#888;font-size:13px;margin-bottom:24px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;width:100%;max-width:700px}
-.card{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;border-radius:10px;text-decoration:none;background:#0e0e1e;border:1px solid #1a1a3a;transition:.2s}
-.card:hover{transform:translateY(-3px);border-color:var(--ac);box-shadow:0 0 20px rgba(255,255,255,.05)}
-.num{font-size:24px;font-weight:900;color:var(--ac);letter-spacing:2px}
-.title{color:#ccc;font-size:14px;margin-top:4px}
+body{background:#050510;color:#e0e0ff;font-family:'Segoe UI',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+a{color:#e0e0ff;text-decoration:none;font-size:18px;padding:10px 0;border-bottom:1px solid #1a1a3a;width:100%;max-width:300px;text-align:center}
+a:hover{color:#fff}
 </style></head><body>
-<h1>🎮 Giochi</h1><p class="sub">Seleziona un gioco</p>
-<div class="grid">${cards}</div>
+${items}
 </body></html>`;
 }

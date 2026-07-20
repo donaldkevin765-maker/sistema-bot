@@ -218,10 +218,9 @@ html, body {
       <div id="lobby">
         <h1>🎾 NEON TENNIS</h1>
         <p class="sub">1v1 · First to 7 wins</p>
-        <input id="inp-name" type="text" placeholder="Your name" maxlength="16" autocomplete="off">
-        <input id="inp-room" type="text" placeholder="Room name" maxlength="20" autocomplete="off" value="room1">
-        <button id="btn-join">JOIN GAME</button>
-        <div class="status" id="lobby-msg">Enter a name and room to start</div>
+<input id="inp-name" type="text" placeholder="Your name" maxlength="16" autocomplete="off">
+<button id="btn-join">GIOCA</button>
+        <div class="status" id="lobby-msg">Inserisci nome e gioca</div>
         <div class="error" id="lobby-err"></div>
       </div>
 
@@ -256,7 +255,6 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const lobby = document.getElementById('lobby');
 const inpName = document.getElementById('inp-name');
-const inpRoom = document.getElementById('inp-room');
 const btnJoin = document.getElementById('btn-join');
 const lobbyMsg = document.getElementById('lobby-msg');
 const lobbyErr = document.getElementById('lobby-err');
@@ -563,7 +561,7 @@ function hideLobby() {
 
 function joinGame() {
   const name = inpName.value.trim() || 'Player' + (Math.random() * 1000 | 0);
-  const room = inpRoom.value.trim() || 'default';
+  const room = 'room1';
   G.myRoom = room;
 
   if (!G.socket || !G.socket.connected) {
@@ -804,14 +802,12 @@ function init() {
   if (saved) {
     try {
       const d = JSON.parse(saved);
-      inpRoom.value = d.room || '';
     } catch(e) {}
   }
 }
 
 // ─── Focus trap for lobby input ─────────────────────────────
 inpName.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnJoin.click(); });
-inpRoom.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnJoin.click(); });
 
 init();
 </script>
