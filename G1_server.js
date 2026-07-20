@@ -254,6 +254,8 @@ class GameRoom {
       const now = Date.now();
       if (now - p.lastAttackTime >= ATK_COOLDOWN * 1000) {
         p.lastAttackTime = now;
+        // Track shots fired per giocatori umani
+        if (!p.isBot) skillTracker.recordEvent(p.id, 'shot');
         const angle = Math.atan2(p.aimY - p.y, p.aimX - p.x);
         const b = this.projectiles.get();
         b.x = p.x + Math.cos(angle) * PLAYER_RADIUS;
@@ -314,14 +316,22 @@ class GameRoom {
     });
     this._playerSurvivalStart.clear();
 
-    // Dopo la partita, programma nuovo riempimento
-    if (this.botManager) {
-      setTimeout(() => {
-        if (this.state === 'ended') {
-          this.botManager.recalibrate();
-        }
-      }, 2000);
-    }
+    // Ricalibra bot dopo la partita
+    if (this.botManager) this.botManager.recalibrate();
+
+    // Dopo 3 secondi, rimuovi bot e resetta la stanza per nuove partite
+    setTimeout(() => {
+      if (this.state !== 'ended') return;
+      if (this.botManager) this.botManager.clear();
+      // Resetta la stanza per nuove partite
+      this.state = 'waiting';
+      this.scores = [0, 0];
+      this.winner = -1;
+      this._notified = false;
+      this._endedAt = 0;
+      this.projectiles.releaseAll();
+      console.log(`[G1] Room ${this.id} reset to waiting`);
+    }, 3000);
   }
 
   _checkWinCondition() {

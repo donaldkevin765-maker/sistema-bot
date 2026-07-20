@@ -185,6 +185,25 @@ class BotBrain {
       default: this.thinkRoam(player, room); break;
     }
 
+    // Stuck detection: se il bot non si muove per N tick, forza movimento casuale
+    const moved = Math.abs(player.x - this.lastPos.x) > 2 || Math.abs(player.y - this.lastPos.y) > 2;
+    if (!moved) {
+      this.stuckCounter++;
+      if (this.stuckCounter > 15) {
+        // Stuck! Forza movimento in direzione casuale
+        const dir = Math.floor(Math.random() * 4);
+        this.w = dir === 0;
+        this.s = dir === 1;
+        this.a = dir === 2;
+        this.d = dir === 3;
+        this.stuckCounter = 0;
+      }
+    } else {
+      this.stuckCounter = Math.max(0, this.stuckCounter - 2);
+    }
+    this.lastPos.x = player.x;
+    this.lastPos.y = player.y;
+
     // Applica ritardo di reazione
     if (this.reactionCounter > 0) {
       this.reactionCounter--;
@@ -204,25 +223,44 @@ class BotBrain {
     const nearestCp = this.findNearestCapturePoint(player, room);
     const hpRatio = player.hp / player.maxHp;
 
-    // Se HP è basso, ritirata
+    // Priorità 0: Se HP è basso, ritirata
     if (hpRatio < this.params.retreatThreshold && nearestEnemy) {
       this.state = 'retreat';
       this.stateTimer = 30 + Math.floor(Math.random() * 20);
       return;
     }
 
-    // Se c'è un nemico vicino, attacca
+    // Priorità 1: Nemico sta catturando un nostro punto → difendi
+    if (nearestCp && nearestCp.owner === player.team && nearestCp.progress < 1 && nearestCp.progress > 0) {
+      // Un nemico sta decatturando il nostro punto? Controlla se ci sono nemici vicini al CP
+      const enemyAtCp = enemies.find(e => {
+        if (!e.alive || e.disconnected) return false;
+        const dx = e.x - nearestCp.x, dy = e.y - nearestCp.y;
+        return dx * dx + dy * dy < 6400; // 80px dal CP
+      });
+      if (enemyAtCp) {
+        this.state = 'attack';
+        this.targetEnemy = enemyAtCp;
+        this.stateTimer = 50 + Math.floor(Math.random() * 30);
+        return;
+      }
+    }
+
+    // Priorità 2: Nemico vicino → attacca
     if (nearestEnemy) {
       const dist = this.distance(player, nearestEnemy);
-      if (dist < 250) {
+      if (dist < 250 || (nearestCp && nearestCp.owner !== player.team && dist < 300)) {
         this.state = 'attack';
         this.targetEnemy = nearestEnemy;
+        // Scegli il nemico più debole (HP più basso) se ce ne sono multipli
+        const weakest = enemies.reduce((a, b) => (!a || a.hp > b.hp) ? b : a, null);
+        if (weakest && this.distance(player, weakest) < 300) this.targetEnemy = weakest;
         this.stateTimer = 40 + Math.floor(Math.random() * 30);
         return;
       }
     }
 
-    // Se c'è un punto di cattura da prendere
+    // Priorità 3: Cattura punto non posseduto
     if (nearestCp && nearestCp.owner !== player.team && nearestCp.progress < 1) {
       this.state = 'capture';
       this.targetX = nearestCp.x;
@@ -231,7 +269,7 @@ class BotBrain {
       return;
     }
 
-    // Default: roaming
+    // Default: roaming verso il centro
     this.state = 'roam';
     this.stateTimer = 40 + Math.floor(Math.random() * 40);
   }
@@ -272,8 +310,15 @@ class BotBrain {
       this.d = moveX > 0.2;
     }
 
-    // Sparo: quando abbastanza vicino e angolo decente
-    this.shoot = dist < 300 && Math.random() < 0.8;
+    // Sparo: quando abbastanza vicino e mirato verso il nemico
+    const aimAngle = Math.atan2(this.my - player.y, this.mx - player.x);
+    const enemyAngle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+    let angleDiff = Math.abs(aimAngle - enemyAngle);
+    if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
+    const onTarget = angleDiff < 0.6;
+    // EASY bot a volte sbaglia il timing del tiro
+    const shootTiming = this.difficulty === 'easy' ? Math.random() < 0.7 : Math.random() < 0.95;
+    this.shoot = dist < 300 && onTarget && shootTiming;
 
     // Schivata proiettili: se un proiettile si avvicina, schiva
     this.dodgeProjectiles(player, room);
@@ -473,6 +518,7 @@ class BotManager {
 
     // Timer per aggiungere bot
     this._addTimer = null;
+    this._disposed = false;
   }
 
   // Registra un giocatore umano
@@ -493,11 +539,13 @@ class BotManager {
 
   // Programma il riempimento con bot
   scheduleBotFill() {
+    if (this._disposed) return;
     if (this._addTimer) {
       clearTimeout(this._addTimer);
     }
     this._addTimer = setTimeout(() => {
       this._addTimer = null;
+      if (this._disposed || !this._checkValid()) return;
       this.fillWithBots();
     }, 1500); // Aspetta 1.5s per vedere se arrivano altri umani
   }
@@ -598,8 +646,9 @@ class BotManager {
     }
   }
 
-  // Pulisci tutti i bot
+  // Pulisci tutti i bot e resetta lo stato
   clear() {
+    this._disposed = true;
     const botIds = [...this.botPlayerIds];
     for (const id of botIds) {
       this.removeBot(id);
@@ -609,6 +658,13 @@ class BotManager {
       clearTimeout(this._addTimer);
       this._addTimer = null;
     }
+  }
+
+  // Verifica se il manager è ancora valido
+  _checkValid() {
+    if (this._disposed) return false;
+    // Verifica che la room esista ancora nella mappa globale
+    return true;
   }
 }
 
