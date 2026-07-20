@@ -5,10 +5,6 @@
 
 const { BotManager, SkillTracker, BASE_DIFF_PARAMS } = require('./bot-core.js');
 
-// Esporta SkillTracker per compatibilità con G1_server.js
-// (usa l'istanza condivisa da bot-core)
-module.exports = { BotManager, SkillTracker };
-
 // ─── Nomi a tema per NEON CONQUEST ─────────────────────────
 const BOT_NAMES_G1 = [
   'Nova', 'Viper', 'Pixel', 'Hex', 'Phantom',
@@ -320,5 +316,4 @@ class G1BotManager extends BotManager {
   }
 }
 
-// Esporta anche G1BotBrain per test
 module.exports = { G1BotManager, G1BotBrain, SkillTracker, BotManager };
