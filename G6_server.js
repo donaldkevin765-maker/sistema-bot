@@ -14,6 +14,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const { G6BotManager, SkillTracker } = require('./G6_bot.js');
 
 // ─── Constants ───────────────────────────────────────────────
 const PORT = process.env.PORT || 3006;
@@ -88,6 +89,10 @@ class GameRoom {
     this._endedAt = 0;
     this._disconnectedTimers = new Map();
     this._startTimer = null;
+    this.maxPlayers = MAX_PLAYERS;
+    this._notified = false;
+    this._forceStartReady = false;
+    this._playerSurvivalStart = new Map();
 
     this.ringX = ARENA_W / 2;
     this.ringY = ARENA_H / 2;
@@ -118,7 +123,7 @@ class GameRoom {
 
   // ── Player management ──
 
-  addPlayer(id, username) {
+  addPlayer(id, username, isBot = false) {
     if (this.players.has(id)) return this.players.get(id);
     if (this.players.size >= MAX_PLAYERS) return null;
 
@@ -138,6 +143,7 @@ class GameRoom {
       playerIndex: pi,
       disconnected: false,
       disconnectTimer: 0,
+      isBot,
     };
     this.players.set(id, player);
 
@@ -220,6 +226,13 @@ class GameRoom {
 
   // ── Game lifecycle ──
 
+  startIfReady() {
+    if (this.state === 'waiting' && this.players.size >= 2) {
+      if (this._startTimer) { clearTimeout(this._startTimer); this._startTimer = null; }
+      this._startGame();
+    }
+  }
+
   _startGame() {
     this.state = 'playing';
     this.projectiles.releaseAll();
@@ -239,12 +252,40 @@ class GameRoom {
       p.lastAttackTime = 0; p.kills = 0;
       idx++;
     });
+
+    // Survival tracking
+    const now = Date.now();
+    this.players.forEach(p => this._playerSurvivalStart.set(p.id, now));
+    if (this.botManager) this.botManager.recalibrate();
   }
 
   _endGame(winnerId) {
     this.state = 'ended';
     this.winner = winnerId;
     this._endedAt = Date.now();
+
+    // Skill tracking
+    this.players.forEach(p => {
+      if (!p.isBot) skillTracker.recordEvent(p.id, 'game_end');
+    });
+    this._playerSurvivalStart.clear();
+    if (this.botManager) this.botManager.recalibrate();
+
+    // Reset stanza dopo 3s
+    setTimeout(() => {
+      if (this.state !== 'ended') return;
+      if (this.botManager) this.botManager.clear();
+      if (this._startTimer) { clearTimeout(this._startTimer); this._startTimer = null; }
+      this.state = 'waiting';
+      this.winner = -1;
+      this._notified = false;
+      this._endedAt = 0;
+      this._forceStartReady = false;
+      this.ringX = ARENA_W / 2;
+      this.ringY = ARENA_H / 2;
+      this.ringRadius = RING_INITIAL;
+      this.shrinkTimer = RING_SHRINK_INTERVAL;
+    }, 3000);
   }
 
   _checkWinCondition() {
@@ -381,6 +422,7 @@ class GameRoom {
         color: p.color,
         playerIndex: p.playerIndex,
         disconnected: p.disconnected,
+        isBot: !!p.isBot,
       });
     });
 
@@ -410,7 +452,16 @@ class GameRoom {
 
 // ─── Room Manager ──────────────────────────────────────────
 const rooms = new Map();
-function getOrCreateRoom(n) { const f = ROOM_PREFIX + n; if (!rooms.has(f)) rooms.set(f, new GameRoom(f)); return rooms.get(f); }
+const skillTracker = new SkillTracker();
+function getOrCreateRoom(n) {
+  const f = ROOM_PREFIX + n;
+  if (!rooms.has(f)) {
+    const room = new GameRoom(f);
+    room.botManager = new G6BotManager(room, skillTracker);
+    rooms.set(f, room);
+  }
+  return rooms.get(f);
+}
 setInterval(() => { for (const [id, r] of rooms) { if (r.state === 'ended' && Date.now() - r._endedAt > 60000) rooms.delete(id); } }, 30000);
 
 // ─── Express + Socket.io ────────────────────────────────────
@@ -449,14 +500,26 @@ io.on('connection', (socket) => {
     socket.join(room.id);
     socket.emit('connected', { playerId: socket.id, roomId: room.id, gameState: room.state, reconnected: false, playerIndex: player.playerIndex });
     io.to(room.id).emit('game-state', room.getState());
+    if (room.botManager) room.botManager.registerHuman(socket.id);
   });
 
   socket.on('input', (data) => { if (!currentRoom || !data) return; currentRoom.handleInput(currentPlayerId, data); });
-  socket.on('disconnect', () => { if (currentRoom) { currentRoom.handleDisconnect(currentPlayerId); io.to(currentRoom.id).emit('game-state', currentRoom.getState()); } });
+  socket.on('disconnect', () => {
+    if (currentRoom) {
+      currentRoom.handleDisconnect(currentPlayerId);
+      io.to(currentRoom.id).emit('game-state', currentRoom.getState());
+      if (currentRoom.botManager) {
+        currentRoom.botManager.unregisterPlayer(currentPlayerId);
+        currentRoom.botManager.scheduleBotFill();
+      }
+    }
+  });
 });
 
 setInterval(() => {
+  const now = Date.now();
   for (const room of rooms.values()) {
+    if (room.botManager) room.botManager.update(now);
     room.update();
     if (room.state === 'waiting' || room.state === 'playing') {
       io.to(room.id).emit('game-state', room.getState());

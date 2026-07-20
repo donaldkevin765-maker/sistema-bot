@@ -14,6 +14,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const { G4BotManager, SkillTracker } = require('./G4_bot.js');
 
 // ─── Constants ───────────────────────────────────────────────
 const PORT = process.env.PORT || 3004;
@@ -105,11 +106,15 @@ class GameRoom {
     this._endedAt = 0;
     this._disconnectedTimers = new Map();
     this._startTimer = null;
+    this.maxPlayers = MAX_PLAYERS;
+    this._notified = false;
+    this._forceStartReady = false;
+    this._playerSurvivalStart = new Map();
   }
 
   // ── Player management ──
 
-  addPlayer(id, username) {
+  addPlayer(id, username, isBot = false) {
     if (this.players.has(id)) return this.players.get(id);
     if (this.players.size >= MAX_PLAYERS) return null;
 
@@ -129,6 +134,7 @@ class GameRoom {
       disconnectTimer: 0,
       finished: false,
       finishedAt: 0,
+      isBot,
     };
 
     this.players.set(id, player);
@@ -285,6 +291,13 @@ class GameRoom {
 
   // ── Game lifecycle ──
 
+  startIfReady() {
+    if (this.state === 'waiting' && this.players.size >= 2) {
+      if (this._startTimer) { clearTimeout(this._startTimer); this._startTimer = null; }
+      this._startGame();
+    }
+  }
+
   _startGame() {
     this.state = 'playing';
     this.trails.releaseAll();
@@ -303,12 +316,36 @@ class GameRoom {
       p.finishedAt = 0;
       idx++;
     });
+
+    // Survival tracking
+    const now = Date.now();
+    this.players.forEach(p => this._playerSurvivalStart.set(p.id, now));
+    if (this.botManager) this.botManager.recalibrate();
   }
 
   _endGame(playerIndex) {
     this.state = 'ended';
     this.winner = playerIndex;
     this._endedAt = Date.now();
+
+    // Skill tracking
+    this.players.forEach(p => {
+      if (!p.isBot) skillTracker.recordEvent(p.id, 'game_end');
+    });
+    this._playerSurvivalStart.clear();
+    if (this.botManager) this.botManager.recalibrate();
+
+    // Reset stanza dopo 3s
+    setTimeout(() => {
+      if (this.state !== 'ended') return;
+      if (this.botManager) this.botManager.clear();
+      if (this._startTimer) { clearTimeout(this._startTimer); this._startTimer = null; }
+      this.state = 'waiting';
+      this.winner = -1;
+      this._notified = false;
+      this._endedAt = 0;
+      this._forceStartReady = false;
+    }, 3000);
   }
 
   _checkWinCondition() {
@@ -363,6 +400,7 @@ class GameRoom {
         playerIndex: p.playerIndex,
         finished: p.finished,
         disconnected: p.disconnected,
+        isBot: !!p.isBot,
       });
     });
 
@@ -389,10 +427,15 @@ class GameRoom {
 
 // ─── Room Manager ──────────────────────────────────────────
 const rooms = new Map();
+const skillTracker = new SkillTracker();
 
 function getOrCreateRoom(roomName) {
   const fullId = ROOM_PREFIX + roomName;
-  if (!rooms.has(fullId)) rooms.set(fullId, new GameRoom(fullId));
+  if (!rooms.has(fullId)) {
+    const room = new GameRoom(fullId);
+    room.botManager = new G4BotManager(room, skillTracker);
+    rooms.set(fullId, room);
+  }
   return rooms.get(fullId);
 }
 
@@ -443,15 +486,27 @@ io.on('connection', (socket) => {
     socket.join(room.id);
     socket.emit('connected', { playerId: socket.id, roomId: room.id, gameState: room.state, reconnected: false, playerIndex: player.playerIndex });
     io.to(room.id).emit('game-state', room.getState());
+    if (room.botManager) room.botManager.registerHuman(socket.id);
   });
 
   socket.on('input', (data) => { if (!currentRoom || !data) return; currentRoom.handleInput(currentPlayerId, data); });
-  socket.on('disconnect', () => { if (currentRoom) { currentRoom.handleDisconnect(currentPlayerId); io.to(currentRoom.id).emit('game-state', currentRoom.getState()); } });
+  socket.on('disconnect', () => {
+    if (currentRoom) {
+      currentRoom.handleDisconnect(currentPlayerId);
+      io.to(currentRoom.id).emit('game-state', currentRoom.getState());
+      if (currentRoom.botManager) {
+        currentRoom.botManager.unregisterPlayer(currentPlayerId);
+        currentRoom.botManager.scheduleBotFill();
+      }
+    }
+  });
 });
 
 // ─── Game Loop ─────────────────────────────────────────────
 setInterval(() => {
+  const now = Date.now();
   for (const room of rooms.values()) {
+    if (room.botManager) room.botManager.update(now);
     room.update();
     if (room.state === 'waiting') { io.to(room.id).emit('game-state', room.getState()); }
     else if (room.state === 'playing') { io.to(room.id).emit('game-state', room.getState()); }
