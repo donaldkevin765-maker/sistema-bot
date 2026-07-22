@@ -1,0 +1,135 @@
+#!/bin/bash
+# heartbeat — Tracker task in background con timeout e recovery
+#
+# Uso:
+#   ./_bin/heartbeat start <task_id> <descrizione> <timeout_sec> [fallback]
+#   ./_bin/heartbeat check <task_id>
+#   ./_bin/heartbeat list
+#   ./_bin/heartbeat done <task_id>
+#   ./_bin/heartbeat fail <task_id> [motivo]
+#
+# Esempi:
+#   ./_bin/heartbeat start bg_abc123 "Creazione portale" 300 "build directly"
+#   ./_bin/heartbeat check bg_abc123
+#   ./_bin/heartbeat done bg_abc123
+#
+# I task sono salvati in _system/tasks.json
+
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+TASK_FILE="$DIR/_system/tasks.json"
+
+mkdir -p "$DIR/_system"
+
+# Inizializza file se non esiste
+[ -f "$TASK_FILE" ] || echo '{"tasks":[]}' > "$TASK_FILE"
+
+case "$1" in
+    start)
+        if [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
+            echo "Uso: heartbeat start <task_id> <descrizione> <timeout_sec> [fallback]"
+            exit 1
+        fi
+        NOW=$(date +%s)
+        DEADLINE=$((NOW + $4))
+        TASK=$(cat "$TASK_FILE" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+# Rimuovi vecchio se esiste
+data['tasks'] = [t for t in data['tasks'] if t['id'] != '$2']
+data['tasks'].append({
+    'id': '$2',
+    'descrizione': '$3',
+    'started': '$NOW',
+    'deadline': '$DEADLINE',
+    'timeout_sec': $4,
+    'fallback': '${5:-}',
+    'status': 'running'
+})
+json.dump(data, sys.stdout, indent=2)
+")
+        echo "$TASK" > "$TASK_FILE"
+        echo "✅ Task tracciato: $2 ($3) — scade tra $4s"
+        ;;
+    check)
+        if [ -z "$2" ]; then
+            echo "Uso: heartbeat check <task_id>"
+            exit 1
+        fi
+        NOW=$(date +%s)
+        python3 -c "
+import json, sys
+data = json.load(open('$TASK_FILE'))
+for t in data['tasks']:
+    if t['id'] == '$2':
+        remaining = t['deadline'] - $NOW
+        elapsed = $NOW - t['started']
+        if t['status'] == 'done':
+            print(f\"✅ Task completato: {t['id']} ({t['descrizione']})\")
+        elif t['status'] == 'failed':
+            print(f\"❌ Task fallito: {t['id']} ({t['descrizione']})\")
+        elif remaining <= 0:
+            print(f\"🚨 TIMEOUT: {t['id']} ({t['descrizione']}) — scaduto da {-remaining}s\")
+            print(f\"   Fallback: {t.get('fallback', 'nessuno')}\")
+        else:
+            print(f\"⏳ In corso: {t['id']} ({t['descrizione']}) — {remaining}s rimanenti\")
+        sys.exit(0)
+print(f\"❓ Task '{'$2'}' non trovato\")
+"
+        ;;
+    list)
+        NOW=$(date +%s)
+        python3 -c "
+import json, sys
+data = json.load(open('$TASK_FILE'))
+if not data['tasks']:
+    print('Nessun task tracciato.')
+    sys.exit(0)
+print(f\"{'ID':30} {'STATUS':10} {'DESCRIZIONE':30} {'RIMANENTE':10}\")
+print('-'*80)
+for t in data['tasks']:
+    remaining = t['deadline'] - $NOW
+    if t['status'] == 'done':
+        rem_str = '✅ done'
+    elif t['status'] == 'failed':
+        rem_str = '❌ failed'
+    elif remaining <= 0:
+        rem_str = f'🚨 {-remaining}s overdue'
+    else:
+        rem_str = f'{remaining}s'
+    print(f\"{t['id']:30} {t['status']:10} {t['descrizione'][:30]:30} {rem_str:10}\")
+"
+        ;;
+    done)
+        [ -z "$2" ] && { echo "Uso: heartbeat done <task_id>"; exit 1; }
+        TASK=$(cat "$TASK_FILE" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for t in data['tasks']:
+    if t['id'] == '$2':
+        t['status'] = 'done'
+        break
+json.dump(data, sys.stdout, indent=2)
+")
+        echo "$TASK" > "$TASK_FILE"
+        echo "✅ Task $2 segnato come completato"
+        ;;
+    fail)
+        [ -z "$2" ] && { echo "Uso: heartbeat fail <task_id> [motivo]"; exit 1; }
+        MOTIVO="${3:-errore sconosciuto}"
+        TASK=$(cat "$TASK_FILE" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for t in data['tasks']:
+    if t['id'] == '$2':
+        t['status'] = 'failed'
+        t['motivo'] = '$MOTIVO'
+        break
+json.dump(data, sys.stdout, indent=2)
+")
+        echo "$TASK" > "$TASK_FILE"
+        echo "❌ Task $2 segnato come fallito: $MOTIVO"
+        ;;
+    *)
+        echo "Uso: heartbeat {start|check|list|done|fail} [args...]"
+        ;;
+esac

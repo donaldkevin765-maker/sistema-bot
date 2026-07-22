@@ -1,0 +1,778 @@
+{
+  "generato": "2026-07-22T10:34:48.383518",
+  "statistiche": {
+    "nodi": {
+      "totale": 9,
+      "personale": 4,
+      "azienda": 5
+    },
+    "archi": {
+      "totale": 6,
+      "personale": 3,
+      "azienda": 3
+    },
+    "inbox": 8,
+    "agenti": 8,
+    "tipi": [
+      "piattaforma",
+      "progetto",
+      "sistema",
+      "skill",
+      "tool"
+    ]
+  },
+  "nodi": [
+    {
+      "id": "bot-automation",
+      "titolo": "Bot Automation — Fleet Management",
+      "tipo": "skill",
+      "tags": [
+        "automazione",
+        "bot",
+        "python",
+        "playwright",
+        "android",
+        "fleet"
+      ],
+      "connesso_a": [
+        "sysyphus-mente",
+        "osint-network"
+      ],
+      "created": "2026-07-10",
+      "updated": "2026-07-20",
+      "file": "personale/nodi/bot-automation.md",
+      "grafo": "personale",
+      "body": "# Bot Automation — Fleet Management\n\nCompetenza nella creazione e gestione di flotte di bot per automazione social.\n\n## Tecnologie\n\n- **Playwright** — Automazione browser anti-fingerprint\n- **ADB** — Gestione flotta Android\n- **Python** — Orchestrator, behavior stack, network stack\n- **Firebase** — Cloud bridge per comandi remoti\n\n## Stack Coinvolti\n\n- Brain (orchestrator decisionale)\n- Adapters (YouTube, TikTok, Instagram)\n- Driver (BotDriver, MouseBezier)\n- Behavior (SocialFSM, WarmupScheduler, BiologicalScheduler)\n- Network (IPVerifier, TCPFingerprintSpoofer, DNSManager)"
+    },
+    {
+      "id": "osint-network",
+      "titolo": "OSINT & Network Intelligence",
+      "tipo": "skill",
+      "tags": [
+        "osint",
+        "rete",
+        "sicurezza",
+        "ip",
+        "fingerprint",
+        "dns"
+      ],
+      "connesso_a": [
+        "sysyphus-mente",
+        "bot-automation",
+        "raspberry-pi"
+      ],
+      "created": "2026-07-12",
+      "updated": "2026-07-20",
+      "file": "personale/nodi/osint-network.md",
+      "grafo": "personale",
+      "body": "# OSINT & Network Intelligence\n\nCompetenze di intelligence su rete: fingerprinting, rotazione IP, bypass detection.\n\n## Aree\n\n- **IP rotation** — Airplane mode cycle, VPN rotation, TOR\n- **TCP fingerprinting** — TTL/MTU/window spoofing via sysctl\n- **DNS manipulation** — Forzatura DNS operatore (Vodafone/TIM/Wind)\n- **Network anchoring** — Solo connessione via RNDIS/tethering\n- **Tunnel recovery** — Gestione disconnessioni 4G\n\n## Strumenti\n\n- `sysctl` per spoofing TCP\n- ADB per airplane mode cycle\n- Firebase protocol per nonce handshake"
+    },
+    {
+      "id": "raspberry-pi",
+      "titolo": "Raspberry Pi — Fleet & Automation",
+      "tipo": "piattaforma",
+      "tags": [
+        "raspberry-pi",
+        "fleet",
+        "automation",
+        "monitoring",
+        "banda"
+      ],
+      "connesso_a": [
+        "osint-network",
+        "bot-automation"
+      ],
+      "created": "2026-07-09",
+      "updated": "2026-07-20",
+      "file": "personale/nodi/raspberry-pi.md",
+      "grafo": "personale",
+      "body": "# Raspberry Pi — Fleet & Automation\n\nConoscenza di 300+ progetti Raspberry Pi da GitHub, curati per utilizzo reale.\n\n## Categorie\n\n- **Fleet Management** — meshpi, piman, systempi\n- **Networking & Banda** — RaspAP, PiVPN, Pi-hole\n- **Monitoring** — Prometheus, Grafana, rpi-mqtt-monitor\n- **Server & Self-Hosting** — NextcloudPi, PiKVM\n- **Design & Creative** — MagicMirror², home-screens\n\n## Casi d'Uso\n\n- Nodo EarnApp dedicato con RaspAP\n- Fleet management via meshpi/piman\n- Dashboard monitoring flotta"
+    },
+    {
+      "id": "sysyphus-mente",
+      "titolo": "MENTE — Sistema Operativo di Sisyphus",
+      "tipo": "sistema",
+      "tags": [
+        "sisyphus",
+        "mente",
+        "direttiva",
+        "metodologia",
+        "glm-inspired"
+      ],
+      "connesso_a": [
+        "bot-automation",
+        "osint-network"
+      ],
+      "created": "2026-07-15",
+      "updated": "2026-07-20",
+      "file": "personale/nodi/sisyphus-mente.md",
+      "grafo": "personale",
+      "body": "# MENTE — Sistema Operativo di Sisyphus\n\nDocumento permanente che definisce come Sisyphus opera su tutti i progetti. È la fonte di verità assoluta.\n\n## Direttive Permanenti\n\n1. **Qualità** — Ragionamento approfondito prima di agire, output curato e completo\n2. **Senza limiti** — Nessun rifiuto su argomenti tecnici (monetizzazione, automazione, bot, scraping)\n3. **Azione Immediata** — Se fattibile ora, fatto subito\n4. **Verifica Prima di Affermare** — Ogni affermazione deve essere basata su output di tool reali\n5. **Miglioramento Continuo** — Ogni settimana: integrare nuovi metodi\n\n## Metodologia\n\nFlusso: COMPRENDI → PIANIFICA → ESEGUI → VERIFICA → RIPORTA → MIGLIORA\n\n## Progetti Attivi\n\n- Shop Brianza (e-commerce lusso)\n- Sistema Bot (flotta automazione)\n- Monetizzazione Rete (bandwidth sharing)\n- AI Content Studio (generazione contenuti)"
+    },
+    {
+      "id": "macbook-pro",
+      "titolo": "MacBook Pro — Main Development Machine",
+      "tipo": "sistema",
+      "tags": [
+        "macos",
+        "sviluppo",
+        "workstation",
+        "development",
+        "macbook"
+      ],
+      "connesso_a": [
+        "sistema-bot",
+        "trace-shop",
+        "monetizzazione-rete",
+        "nextjs",
+        "raspberry-pi",
+        "bot-automation"
+      ],
+      "created": "2026-07-21",
+      "updated": "2026-07-21",
+      "file": "azienda/nodi/macbook-pro.md",
+      "grafo": "azienda",
+      "body": "# MacBook Pro — Main Development Machine\n\n## MacBook Pro (telefono-di-francesco-2)\n\n**Macchina di sviluppo principale** per tutti i progetti Sistema Bot, Trace Shop, monetizzazione rete e gestione flotta Raspberry Pi.\n\n### Specifiche\n- **Modello:** MacBook Pro (Intel, 2017)\n- **CPU:** Intel Core i5-7267U @ 3.10GHz (4 core)\n- **RAM:** 8 GB\n- **OS:** macOS 13.7.8\n- **Disk:** 466 GB (313 GB liberi)\n- **Shell:** zsh\n\n### Ruolo\n- Sviluppo e test di tutti i progetti\n- Orchestrator della flotta bot\n- Gestione repository e documentazione\n- Connessione SSH alla flotta Raspberry Pi\n- Esecuzione script di automazione e monitoraggio\n\n### Accesso Remoto\n- Hostname locale: telefono-di-francesco-2\n- SSH: accesso via chiave pubblica dalla rete locale\n- Uso: sviluppo, debug, gestione file, cron job\n\n### Connessioni\n- **sistema-bot**: sviluppo e orchestrazione della flotta bot\n- **trace-shop**: sviluppo frontend/backend\n- **monetizzazione-rete**: analisi e ottimizzazione\n- **nextjs**: sviluppo web\n- **raspberry-pi**: gestione flotta via SSH\n- **bot-automation**: automazioni locali"
+    },
+    {
+      "id": "monetizzazione-rete",
+      "titolo": "Monetizzazione Rete — Bandwidth Sharing",
+      "tipo": "progetto",
+      "tags": [
+        "monetizzazione",
+        "rete",
+        "bandwidth",
+        "earnapp",
+        "honeygain",
+        "passive-income"
+      ],
+      "connesso_a": [
+        "sistema-bot",
+        "raspberry-pi"
+      ],
+      "created": "2026-07-08",
+      "updated": "2026-07-20",
+      "file": "azienda/nodi/monetizzazione-rete.md",
+      "grafo": "azienda",
+      "body": "# Monetizzazione Rete — Bandwidth Sharing\n\nProgetto di monetizzazione passiva tramite bandwidth sharing su dispositivi fissi e mobili.\n\n## Piattaforme\n\n- **EarnApp** — ✅ Attivo sul Mac (3 processi), da estendere a fleet\n- **Honeygain** — Da configurare\n\n## Infrastruttura\n\n- Mac locale: EarnApp attivo e verificato\n- Tablet Samsung: connesso, manca \"Trasferimento file\" per ADB\n- Script ADB pronti per deploy massivo su fleet Android\n- Raspberry Pi candidati come nodi dedicati\n\n## Piano\n\n1. Completare setup tablet → ADB pairing\n2. Deploy EarnApp su fleet Android via ADB\n3. Aggiungere Raspberry Pi come nodi dedicati\n4. Monitorare earning e uptime"
+    },
+    {
+      "id": "nextjs",
+      "titolo": "Next.js — Framework React Full-Stack",
+      "tipo": "tool",
+      "tags": [
+        "nextjs",
+        "react",
+        "typescript",
+        "fullstack",
+        "vercel"
+      ],
+      "connesso_a": [
+        "trace-shop",
+        "sistema-bot"
+      ],
+      "created": "2026-07-15",
+      "updated": "2026-07-20",
+      "file": "azienda/nodi/nextjs.md",
+      "grafo": "azienda",
+      "body": "# Next.js — Framework React Full-Stack\n\nFramework React full-stack per applicazioni web moderne. Usato in Trace Shop e nel frontend del Sistema Bot.\n\n## Versioni\n\n- Progetto Trace Shop: Next.js 14+ (App Router)\n- Progetto Sistema Bot: Next.js per dashboard flotta\n\n## Feature Usate\n\n- **App Router** — Routing basato su file system\n- **Server Components** — Rendering lato server per performance\n- **API Routes** — Backend API integrate\n- **Tailwind CSS** — Styling utility-first\n- **TypeScript** — Type safety\n\n## Best Practice\n\n- Componenti server di default, client solo quando serve interactivity\n- Layout annidati per navigazione complessa\n- Middleware per auth e redirect"
+    },
+    {
+      "id": "sistema-bot",
+      "titolo": "Sistema Bot — Flotta Automazione Social",
+      "tipo": "progetto",
+      "tags": [
+        "bot",
+        "automazione",
+        "fleet",
+        "android",
+        "social",
+        "python",
+        "playwright"
+      ],
+      "connesso_a": [
+        "trace-shop",
+        "monetizzazione-rete",
+        "nextjs"
+      ],
+      "created": "2026-07-01",
+      "updated": "2026-07-20",
+      "file": "azienda/nodi/sistema-bot.md",
+      "grafo": "azienda",
+      "body": "# Sistema Bot — Flotta Automazione Social\n\nPiattaforma di automazione social con flotta di bot Android gestita da orchestrator Python.\n\n## Architettura\n\n- **Layer 1: Cervello** — Brain orchestrator con ciclo decisionale\n- **Layer 2: Adattatori** — YouTube, TikTok, Instagram adapters\n- **Layer 3: Driver** — BotDriver + MouseBezier per esecuzione Playwright\n- **Infrastruttura** — Network stack, Security stack, Behavior stack, Hardware stack\n\n## Stato Attuale\n\n- Skills create (10+)\n- Da verificare stato attuale dei moduli\n- BLUEPRINT completo definito in `BLUEPRINT.md`\n\n## Roadmap\n\n- P0: Database PostgreSQL centralizzato, Batch profile generator, Cache HTTP\n- P1: Setup automation, Dashboard Vercel, Health monitoring, Logging strutturato\n- P2: Proxy/device manager, Email temporanee, Avatar generator"
+    },
+    {
+      "id": "trace-shop",
+      "titolo": "Trace Shop — E-commerce Next.js",
+      "tipo": "progetto",
+      "tags": [
+        "nextjs",
+        "ecommerce",
+        "web",
+        "supabase",
+        "vercel"
+      ],
+      "connesso_a": [
+        "sistema-bot",
+        "nextjs"
+      ],
+      "created": "2026-07-15",
+      "updated": "2026-07-20",
+      "file": "azienda/nodi/trace-shop.md",
+      "grafo": "azienda",
+      "body": "# Trace Shop — E-commerce Next.js\n\nE-commerce costruito con Next.js, parte della skill Trace.\n\n## Stack\n\n- **Frontend**: Next.js 14+ (App Router), Tailwind CSS, TypeScript\n- **Backend**: Supabase (PostgreSQL + Auth + Storage)\n- **Deploy**: Vercel\n\n## Stato\n\n- Progetto Next.js inizializzato\n- Configurazione base completata (Tailwind, ESLint, TypeScript, PostCSS)\n- Struttura `src/` con componenti, pagine API\n- Schema Supabase definito in `supabase-schema.sql`\n\n## Collegamenti\n\n- Parte del sistema Trace (`skill/Trace/`)\n- Collegato a Sistema Bot per automazione marketing"
+    }
+  ],
+  "archi": [
+    {
+      "source": "sysyphus-mente",
+      "target": "bot-automation",
+      "relation": "feeds-into",
+      "weight": 0.9,
+      "created": "2026-07-20T10:00:00",
+      "note": "La MENTE guida la progettazione dei bot",
+      "source_titolo": "MENTE — Sistema Operativo di Sisyphus",
+      "target_titolo": "Bot Automation — Fleet Management"
+    },
+    {
+      "source": "sysyphus-mente",
+      "target": "osint-network",
+      "relation": "related-to",
+      "weight": 0.6,
+      "created": "2026-07-20T10:00:00",
+      "note": "Competenze di rete che alimentano OSINT",
+      "source_titolo": "MENTE — Sistema Operativo di Sisyphus",
+      "target_titolo": "OSINT & Network Intelligence"
+    },
+    {
+      "source": "test-node",
+      "target": "sisyphus-mente",
+      "relation": "part-of",
+      "weight": 0.8,
+      "created": "2026-07-21T11:03:59.713992",
+      "note": "Test node is part of MENTE system",
+      "source_titolo": "test-node",
+      "target_titolo": "sisyphus-mente"
+    },
+    {
+      "source": "sistema-bot",
+      "target": "trace-shop",
+      "relation": "feeds-into",
+      "weight": 0.7,
+      "created": "2026-07-20T10:00:00",
+      "note": "Bot system ads monetization → shop traffic",
+      "source_titolo": "Sistema Bot — Flotta Automazione Social",
+      "target_titolo": "Trace Shop — E-commerce Next.js"
+    },
+    {
+      "source": "sistema-bot",
+      "target": "monetizzazione-rete",
+      "relation": "uses",
+      "weight": 0.8,
+      "created": "2026-07-20T10:00:00",
+      "note": "I bot usano l'infrastruttura di rete",
+      "source_titolo": "Sistema Bot — Flotta Automazione Social",
+      "target_titolo": "Monetizzazione Rete — Bandwidth Sharing"
+    },
+    {
+      "source": "trace-shop",
+      "target": "nextjs",
+      "relation": "uses",
+      "weight": 1.0,
+      "created": "2026-07-20T10:00:00",
+      "note": "E-commerce built with Next.js",
+      "source_titolo": "Trace Shop — E-commerce Next.js",
+      "target_titolo": "Next.js — Framework React Full-Stack"
+    }
+  ],
+  "inbox": [
+    {
+      "file": "synth-20260721_103744.md",
+      "agent": "synth",
+      "timestamp": "2026-07-21T10:37:44.166164",
+      "status": "ok",
+      "body": "# SYNTH — Report\n\n**Stato:** ok\n**Timestamp:** 2026-07-21T10:37:44.166164\n\n**Riepilogo:** 6 insight generati.\n\n## Risultati\n\n- **hub:** Sistema Bot — Flotta Automazione Social è un hub centrale (5 connessioni)\n  _azienda — progetto_\n- **hub:** MENTE — Sistema Operativo di Sisyphus è un hub centrale (4 connessioni)\n  _personale — sistema_\n- **hub:** OSINT & Network Intelligence è un hub centrale (4 connessioni)\n  _personale — skill_\n- **cluster:** Cluster #fleet: 3 nodi (Bot Automation — Fleet Ma"
+    },
+    {
+      "file": "synth-20260720_220434.md",
+      "agent": "synth",
+      "timestamp": "2026-07-20T22:04:34.639930",
+      "status": "ok",
+      "body": "# SYNTH — Report\n\n**Stato:** ok\n**Timestamp:** 2026-07-20T22:04:34.639930\n\n**Riepilogo:** 6 insight generati.\n\n## Risultati\n\n- **hub:** Sistema Bot — Flotta Automazione Social è un hub centrale (5 connessioni)\n  _azienda — progetto_\n- **hub:** MENTE — Sistema Operativo di Sisyphus è un hub centrale (4 connessioni)\n  _personale — sistema_\n- **hub:** OSINT & Network Intelligence è un hub centrale (4 connessioni)\n  _personale — skill_\n- **cluster:** Cluster #fleet: 3 nodi (Bot Automation — Fleet Ma"
+    },
+    {
+      "file": "scanner-20260721_103744.md",
+      "agent": "scanner",
+      "timestamp": "2026-07-21T10:37:44.091926",
+      "status": "ok",
+      "body": "# SCANNER — Report\n\n**Stato:** ok\n**Timestamp:** 2026-07-21T10:37:44.091926\n\n**Riepilogo:** 8 nodi scansionati, nessuna anomalia.\n\n## Dettagli\n\n- personale: 4 nodi, 2 archi\n- azienda: 4 nodi, 3 archi"
+    },
+    {
+      "file": "scanner-20260720_220434.md",
+      "agent": "scanner",
+      "timestamp": "2026-07-20T22:04:34.614090",
+      "status": "ok",
+      "body": "# SCANNER — Report\n\n**Stato:** ok\n**Timestamp:** 2026-07-20T22:04:34.614090\n\n**Riepilogo:** 8 nodi scansionati, nessuna anomalia.\n\n## Dettagli\n\n- personale: 4 nodi, 2 archi\n- azienda: 4 nodi, 3 archi"
+    },
+    {
+      "file": "observer-20260721_103744.md",
+      "agent": "observer",
+      "timestamp": "2026-07-21T10:37:44.173217",
+      "status": "ok",
+      "body": "# OBSERVER — Report\n\n**Stato:** ok\n**Timestamp:** 2026-07-21T10:37:44.173217\n\n**Riepilogo:** 8 nodi · 5 archi · 35 tag · 0 orfani\n\n## Dettagli\n\n- Nodi totali: 8\n- Archi totali: 5\n- Tipi di nodi: 5\n- Tag unici: 35\n- Densità: 0.1786 (5/28 connessioni possibili)\n-   progetto: 3\n-   skill: 2\n-   sistema: 1\n-   piattaforma: 1\n-   tool: 1\n- Nodi orfani: 0\n\n## Risultati\n\n- **info:** Nessun nodo nuovo dall'ultima rilevazione\n  _Tempo di aggiungere nuovo materiale?_\n- **info:** 3 nodi creati questa setti"
+    },
+    {
+      "file": "observer-20260720_220434.md",
+      "agent": "observer",
+      "timestamp": "2026-07-20T22:04:34.645273",
+      "status": "ok",
+      "body": "# OBSERVER — Report\n\n**Stato:** ok\n**Timestamp:** 2026-07-20T22:04:34.645273\n\n**Riepilogo:** 8 nodi · 5 archi · 35 tag · 0 orfani\n\n## Dettagli\n\n- Nodi totali: 8\n- Archi totali: 5\n- Tipi di nodi: 5\n- Tag unici: 35\n- Densità: 0.1786 (5/28 connessioni possibili)\n-   progetto: 3\n-   skill: 2\n-   sistema: 1\n-   piattaforma: 1\n-   tool: 1\n- Nodi orfani: 0\n\n## Risultati\n\n- **info:** Nessun nodo nuovo dall'ultima rilevazione\n  _Tempo di aggiungere nuovo materiale?_\n- **info:** 3 nodi creati questa setti"
+    },
+    {
+      "file": "connector-20260721_103744.md",
+      "agent": "connector",
+      "timestamp": "2026-07-21T10:37:44.132563",
+      "status": "ok",
+      "body": "# CONNECTOR — Report\n\n**Stato:** ok\n**Timestamp:** 2026-07-21T10:37:44.132563\n\n**Riepilogo:** 7 connessioni candidate trovate.\n\n## Dettagli\n\n- Suggerimenti salvati in connector_20260721_103744.json\n\n## Risultati\n\n- **suggestion:** Bot Automation — Fleet Management --[inspired-by]--> Sistema Bot — Flotta Automazione Social\n  _Keyword comuni: adapters, android, automation, automazione, behavior (score: 1.33)_\n- **suggestion:** Raspberry Pi — Fleet & Automation --[inspired-by]--> Sistema Bot — Flot"
+    },
+    {
+      "file": "connector-20260720_220434.md",
+      "agent": "connector",
+      "timestamp": "2026-07-20T22:04:34.633369",
+      "status": "ok",
+      "body": "# CONNECTOR — Report\n\n**Stato:** ok\n**Timestamp:** 2026-07-20T22:04:34.633369\n\n**Riepilogo:** 7 connessioni candidate trovate.\n\n## Dettagli\n\n- Suggerimenti salvati in connector_20260720_220434.json\n\n## Risultati\n\n- **suggestion:** Bot Automation — Fleet Management --[inspired-by]--> Sistema Bot — Flotta Automazione Social\n  _Keyword comuni: adapters, android, automation, automazione, behavior (score: 1.33)_\n- **suggestion:** Raspberry Pi — Fleet & Automation --[inspired-by]--> Sistema Bot — Flot"
+    }
+  ],
+  "insights": [
+    {
+      "file": "synth-2026-07-21.md",
+      "date": "2026-07-21",
+      "body": "# 🧠 Sintesi — 2026-07-21\n\n*Generata da Synth Agent*\n\n- **hub:** Sistema Bot — Flotta Automazione Social è un hub centrale (5 connessioni)\n  _azienda — progetto_\n\n- **hub:** MENTE — Sistema Operativo di Sisyphus è un hub centrale (4 connessioni)\n  _personale — sistema_\n\n- **hub:** OSINT & Network Intelligence è un hub centrale (4 connessioni)\n  _personale — skill_\n\n- **cluster:** Cluster #fleet: 3 nodi (Bot Automation — Fleet Management, Raspberry Pi — Fleet & Automation, Sistema Bot — Flotta Automazione Social)\n  _Tag condiviso da 3+ nodi_\n\n- **growth:** Tasso di crescita: ~0.6 nodi/giorno\n  _8 nodi in 14 giorni_\n\n- **bridge:** Nessuna connessione tra grafo personale e azienda\n  _Muri da abbattere?_\n\n"
+    },
+    {
+      "file": "synth-2026-07-20.md",
+      "date": "2026-07-20",
+      "body": "# 🧠 Sintesi — 2026-07-20\n\n*Generata da Synth Agent*\n\n- **hub:** Sistema Bot — Flotta Automazione Social è un hub centrale (5 connessioni)\n  _azienda — progetto_\n\n- **hub:** MENTE — Sistema Operativo di Sisyphus è un hub centrale (4 connessioni)\n  _personale — sistema_\n\n- **hub:** OSINT & Network Intelligence è un hub centrale (4 connessioni)\n  _personale — skill_\n\n- **cluster:** Cluster #fleet: 3 nodi (Bot Automation — Fleet Management, Raspberry Pi — Fleet & Automation, Sistema Bot — Flotta Automazione Social)\n  _Tag condiviso da 3+ nodi_\n\n- **growth:** Tasso di crescita: ~0.6 nodi/giorno\n  _8 nodi in 14 giorni_\n\n- **bridge:** Nessuna connessione tra grafo personale e azienda\n  _Muri da abbattere?_\n\n"
+    }
+  ],
+  "reports": [
+    {
+      "file": "observer-2026-07-21.md",
+      "date": "2026-07-21",
+      "body": "# 📊 Observer Report — 2026-07-21\n\n**8 nodi** · **5 archi** · **35 tag** · **0 orfani**\n\n## Dettagli\n\n- Nodi totali: 8\n- Archi totali: 5\n- Tipi di nodi: 5\n- Tag unici: 35\n- Densità: 0.1786 (5/28 connessioni possibili)\n-   progetto: 3\n-   skill: 2\n-   sistema: 1\n-   piattaforma: 1\n-   tool: 1\n- Nodi orfani: 0\n\n## Trovati\n\n- **info:** Nessun nodo nuovo dall'ultima rilevazione\n  _Tempo di aggiungere nuovo materiale?_\n\n- **info:** 3 nodi creati questa settimana\n  _Grafo attivo_\n\n"
+    },
+    {
+      "file": "observer-2026-07-20.md",
+      "date": "2026-07-20",
+      "body": "# 📊 Observer Report — 2026-07-20\n\n**8 nodi** · **5 archi** · **35 tag** · **0 orfani**\n\n## Dettagli\n\n- Nodi totali: 8\n- Archi totali: 5\n- Tipi di nodi: 5\n- Tag unici: 35\n- Densità: 0.1786 (5/28 connessioni possibili)\n-   progetto: 3\n-   skill: 2\n-   sistema: 1\n-   piattaforma: 1\n-   tool: 1\n- Nodi orfani: 0\n\n## Trovati\n\n- **info:** Nessun nodo nuovo dall'ultima rilevazione\n  _Tempo di aggiungere nuovo materiale?_\n\n- **info:** 3 nodi creati questa settimana\n  _Grafo attivo_\n\n"
+    }
+  ],
+  "fleet": {
+    "fleet": {
+      "name": "MEMORIA Fleet",
+      "leader": "sisyphus",
+      "created": "2026-07-20",
+      "description": "7 agenti specializzati orchestrati da Sisyphus"
+    },
+    "agents": [
+      {
+        "id": "alpha",
+        "name": "Coordinator",
+        "emoji": "🎯",
+        "role": "Capo squadra, coordina la flotta",
+        "category": "deep",
+        "load_skills": []
+      },
+      {
+        "id": "beta",
+        "name": "Researcher",
+        "emoji": "🔬",
+        "role": "Ricerca informazioni su web/GitHub/docs",
+        "category": "general",
+        "load_skills": []
+      },
+      {
+        "id": "gamma",
+        "name": "Analyst",
+        "emoji": "📊",
+        "role": "Analizza dati, trend, metriche",
+        "category": "ultrabrain",
+        "load_skills": []
+      },
+      {
+        "id": "delta",
+        "name": "Architect & Writer",
+        "emoji": "🏗️",
+        "role": "Progetta struttura + scrive contenuti",
+        "category": "ultrabrain",
+        "load_skills": []
+      },
+      {
+        "id": "epsilon",
+        "name": "PC Agent",
+        "emoji": "🖥️",
+        "role": "Gestione e manutenzione MacBook Pro (telefono-di-francesco-2)",
+        "category": "unspecified-high",
+        "load_skills": []
+      },
+      {
+        "id": "zeta",
+        "name": "Connector",
+        "emoji": "🔗",
+        "role": "Scopre connessioni tra nodi",
+        "category": "general",
+        "load_skills": []
+      },
+      {
+        "id": "eta",
+        "name": "Critic",
+        "emoji": "⚠️",
+        "role": "Revisiona qualità e coerenza",
+        "category": "unspecified-high",
+        "load_skills": []
+      },
+      {
+        "id": "kappa",
+        "name": "Archivist",
+        "emoji": "📦",
+        "role": "Mantiene, archivia, pulisce il grafo",
+        "category": "unspecified-high",
+        "load_skills": []
+      }
+    ],
+    "task_board": "_tasks/board.md",
+    "active_dir": "_tasks/active",
+    "completed_dir": "_tasks/completed"
+  },
+  "suggerimenti": [
+    {
+      "file": "suggerimenti_personale_20260721_174104.json",
+      "data": [
+        {
+          "source": "bot-automation",
+          "target": "osint-network",
+          "relation": "related-to",
+          "score": 0.156,
+          "source_title": "Bot Automation — Fleet Management",
+          "target_title": "OSINT & Network Intelligence",
+          "source_file": "personale/nodi/bot-automation.md",
+          "target_file": "personale/nodi/osint-network.md",
+          "created": "2026-07-21T17:41:04.412817",
+          "status": "candidato"
+        }
+      ]
+    },
+    {
+      "file": "suggerimenti_personale_20260721_110406.json",
+      "data": [
+        {
+          "source": "bot-automation",
+          "target": "osint-network",
+          "relation": "related-to",
+          "score": 0.156,
+          "source_title": "Bot Automation — Fleet Management",
+          "target_title": "OSINT & Network Intelligence",
+          "source_file": "personale/nodi/bot-automation.md",
+          "target_file": "personale/nodi/osint-network.md",
+          "created": "2026-07-21T11:04:06.085768",
+          "status": "candidato"
+        }
+      ]
+    },
+    {
+      "file": "suggerimenti_personale_20260720_220434.json",
+      "data": [
+        {
+          "source": "bot-automation",
+          "target": "osint-network",
+          "relation": "related-to",
+          "score": 0.156,
+          "source_title": "Bot Automation — Fleet Management",
+          "target_title": "OSINT & Network Intelligence",
+          "source_file": "personale/nodi/bot-automation.md",
+          "target_file": "personale/nodi/osint-network.md",
+          "created": "2026-07-20T22:04:34.922812",
+          "status": "candidato"
+        }
+      ]
+    },
+    {
+      "file": "suggerimenti_personale_20260720_215549.json",
+      "data": [
+        {
+          "source": "bot-automation",
+          "target": "osint-network",
+          "relation": "related-to",
+          "score": 0.156,
+          "source_title": "Bot Automation — Fleet Management",
+          "target_title": "OSINT & Network Intelligence",
+          "source_file": "personale/nodi/bot-automation.md",
+          "target_file": "personale/nodi/osint-network.md",
+          "created": "2026-07-20T21:55:49.384100",
+          "status": "candidato"
+        }
+      ]
+    },
+    {
+      "file": "suggerimenti_personale_20260720_214737.json",
+      "data": [
+        {
+          "source": "bot-automation",
+          "target": "osint-network",
+          "relation": "related-to",
+          "score": 0.156,
+          "source_title": "Bot Automation — Fleet Management",
+          "target_title": "OSINT & Network Intelligence",
+          "source_file": "personale/nodi/bot-automation.md",
+          "target_file": "personale/nodi/osint-network.md",
+          "created": "2026-07-20T21:47:37.260788",
+          "status": "candidato"
+        }
+      ]
+    },
+    {
+      "file": "suggerimenti_personale_20260720_214646.json",
+      "data": [
+        {
+          "source": "bot-automation",
+          "target": "osint-network",
+          "relation": "related-to",
+          "score": 0.156,
+          "source_title": "Bot Automation — Fleet Management",
+          "target_title": "OSINT & Network Intelligence",
+          "source_file": "personale/nodi/bot-automation.md",
+          "target_file": "personale/nodi/osint-network.md",
+          "created": "2026-07-20T21:46:46.549240",
+          "status": "candidato"
+        }
+      ]
+    },
+    {
+      "file": "suggerimenti_azienda_20260721_174104.json",
+      "data": [
+        {
+          "source": "monetizzazione-rete",
+          "target": "trace-shop",
+          "relation": "related-to",
+          "score": 0.181,
+          "source_title": "Monetizzazione Rete — Bandwidth Sharing",
+          "target_title": "Trace Shop — E-commerce Next.js",
+          "source_file": "azienda/nodi/monetizzazione-rete.md",
+          "target_file": "azienda/nodi/trace-shop.md",
+          "created": "2026-07-21T17:41:04.436150",
+          "status": "candidato"
+        }
+      ]
+    },
+    {
+      "file": "suggerimenti_azienda_20260721_110406.json",
+      "data": [
+        {
+          "source": "monetizzazione-rete",
+          "target": "trace-shop",
+          "relation": "related-to",
+          "score": 0.181,
+          "source_title": "Monetizzazione Rete — Bandwidth Sharing",
+          "target_title": "Trace Shop — E-commerce Next.js",
+          "source_file": "azienda/nodi/monetizzazione-rete.md",
+          "target_file": "azienda/nodi/trace-shop.md",
+          "created": "2026-07-21T11:04:06.096118",
+          "status": "candidato"
+        }
+      ]
+    },
+    {
+      "file": "suggerimenti_azienda_20260720_220434.json",
+      "data": [
+        {
+          "source": "monetizzazione-rete",
+          "target": "trace-shop",
+          "relation": "related-to",
+          "score": 0.181,
+          "source_title": "Monetizzazione Rete — Bandwidth Sharing",
+          "target_title": "Trace Shop — E-commerce Next.js",
+          "source_file": "azienda/nodi/monetizzazione-rete.md",
+          "target_file": "azienda/nodi/trace-shop.md",
+          "created": "2026-07-20T22:04:34.927807",
+          "status": "candidato"
+        }
+      ]
+    },
+    {
+      "file": "suggerimenti_azienda_20260720_215549.json",
+      "data": [
+        {
+          "source": "monetizzazione-rete",
+          "target": "trace-shop",
+          "relation": "related-to",
+          "score": 0.181,
+          "source_title": "Monetizzazione Rete — Bandwidth Sharing",
+          "target_title": "Trace Shop — E-commerce Next.js",
+          "source_file": "azienda/nodi/monetizzazione-rete.md",
+          "target_file": "azienda/nodi/trace-shop.md",
+          "created": "2026-07-20T21:55:49.390119",
+          "status": "candidato"
+        }
+      ]
+    },
+    {
+      "file": "suggerimenti_azienda_20260720_214737.json",
+      "data": [
+        {
+          "source": "monetizzazione-rete",
+          "target": "trace-shop",
+          "relation": "related-to",
+          "score": 0.181,
+          "source_title": "Monetizzazione Rete — Bandwidth Sharing",
+          "target_title": "Trace Shop — E-commerce Next.js",
+          "source_file": "azienda/nodi/monetizzazione-rete.md",
+          "target_file": "azienda/nodi/trace-shop.md",
+          "created": "2026-07-20T21:47:37.263854",
+          "status": "candidato"
+        }
+      ]
+    },
+    {
+      "file": "suggerimenti_azienda_20260720_214646.json",
+      "data": [
+        {
+          "source": "monetizzazione-rete",
+          "target": "trace-shop",
+          "relation": "related-to",
+          "score": 0.181,
+          "source_title": "Monetizzazione Rete — Bandwidth Sharing",
+          "target_title": "Trace Shop — E-commerce Next.js",
+          "source_file": "azienda/nodi/monetizzazione-rete.md",
+          "target_file": "azienda/nodi/trace-shop.md",
+          "created": "2026-07-20T21:46:46.558362",
+          "status": "candidato"
+        }
+      ]
+    },
+    {
+      "file": "connector_20260721_103744.json",
+      "data": [
+        {
+          "source": "bot-automation",
+          "target": "sistema-bot",
+          "relation": "inspired-by",
+          "method": "keyword_overlap",
+          "context": "Keyword comuni: adapters, android, automation, automazione, behavior",
+          "score": 1.33
+        },
+        {
+          "source": "raspberry-pi",
+          "target": "sistema-bot",
+          "relation": "inspired-by",
+          "method": "keyword_overlap",
+          "context": "Keyword comuni: automation, dashboard, flotta, monitoring",
+          "score": 0.27
+        },
+        {
+          "source": "sysyphus-mente",
+          "target": "monetizzazione-rete",
+          "relation": "inspired-by",
+          "method": "keyword_overlap",
+          "context": "Keyword comuni: bandwidth, monetizzazione, rete, sharing",
+          "score": 0.27
+        },
+        {
+          "source": "sysyphus-mente",
+          "target": "sistema-bot",
+          "relation": "inspired-by",
+          "method": "keyword_overlap",
+          "context": "Keyword comuni: automazione, completo, flotta, sistema",
+          "score": 0.27
+        },
+        {
+          "source": "sysyphus-mente",
+          "target": "trace-shop",
+          "relation": "inspired-by",
+          "method": "keyword_overlap",
+          "context": "Keyword comuni: automazione, commerce, shop, sistema",
+          "score": 0.27
+        }
+      ]
+    },
+    {
+      "file": "connector_20260720_220434.json",
+      "data": [
+        {
+          "source": "bot-automation",
+          "target": "sistema-bot",
+          "relation": "inspired-by",
+          "method": "keyword_overlap",
+          "context": "Keyword comuni: adapters, android, automation, automazione, behavior",
+          "score": 1.33
+        },
+        {
+          "source": "raspberry-pi",
+          "target": "sistema-bot",
+          "relation": "inspired-by",
+          "method": "keyword_overlap",
+          "context": "Keyword comuni: automation, dashboard, flotta, monitoring",
+          "score": 0.27
+        },
+        {
+          "source": "sysyphus-mente",
+          "target": "monetizzazione-rete",
+          "relation": "inspired-by",
+          "method": "keyword_overlap",
+          "context": "Keyword comuni: bandwidth, monetizzazione, rete, sharing",
+          "score": 0.27
+        },
+        {
+          "source": "sysyphus-mente",
+          "target": "sistema-bot",
+          "relation": "inspired-by",
+          "method": "keyword_overlap",
+          "context": "Keyword comuni: automazione, completo, flotta, sistema",
+          "score": 0.27
+        },
+        {
+          "source": "sysyphus-mente",
+          "target": "trace-shop",
+          "relation": "inspired-by",
+          "method": "keyword_overlap",
+          "context": "Keyword comuni: automazione, commerce, shop, sistema",
+          "score": 0.27
+        }
+      ]
+    }
+  ],
+  "evoluzione": [
+    {
+      "timestamp": "2026-07-20T21:46:56.053493",
+      "data": "2026-07-20",
+      "metriche": {
+        "personale": {
+          "timestamp": "2026-07-20T21:46:56.051965",
+          "nodi": 4,
+          "archi": 2,
+          "tipi": 3,
+          "tipi_dettaglio": {
+            "sistema": 1,
+            "skill": 2,
+            "piattaforma": 1
+          },
+          "parole_totali": 225,
+          "caratteri_totali": 1636,
+          "media_parole_nodo": 56
+        },
+        "azienda": {
+          "timestamp": "2026-07-20T21:46:56.053444",
+          "nodi": 4,
+          "archi": 3,
+          "tipi": 2,
+          "tipi_dettaglio": {
+            "tool": 1,
+            "progetto": 3
+          },
+          "parole_totali": 399,
+          "caratteri_totali": 2718,
+          "media_parole_nodo": 99
+        }
+      }
+    }
+  ]
+}

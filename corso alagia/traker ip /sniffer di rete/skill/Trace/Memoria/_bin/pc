@@ -1,0 +1,58 @@
+#!/bin/bash
+# 🖥️ PC Agent CLI — Remote Assistant
+# Uso: pc <comando> [args]
+#      ./_bin/pc <comando> [args]
+#
+# Installazione globale:
+#   ./_bin/pc --install    # Crea symlink in ~/.local/bin/pc
+#
+# Esempi:
+#   pc status              # Info Mac
+#   pc disk                # Uso disco
+#   pc clean               # Trova cache (dry-run)
+#   pc clean --apply       # Pulisce
+#   pc old 90              # File vecchi in Download
+#   pc large 500           # File grandi
+#   pc apps                # App installate
+#   pc fetch https://...   # Scarica pagina web
+#   pc ping raspberry-pi   # Test connessione
+#   pc ssh raspi "uptime"  # Comando remoto
+#   pc diag raspi          # Diagnostica remota
+#   pc fix raspi           # Fix automatico
+#   pc learn raspi "prob" "sol"  # Insegna
+#   pc connect             # Mostra dispositivi
+#   pc exec "brew update"  # Comando shell
+
+# Risolve il path reale anche quando chiamato da symlink
+SCRIPT="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+DIR="$(cd "$(dirname "$SCRIPT")/.." && pwd)"
+
+# Apri portale nel browser
+if [ "$1" = "portal" ]; then
+    PORTAL="$DIR/_portal/index.html"
+    if [ -f "$PORTAL" ]; then
+        open "$PORTAL"
+        echo "✅ Portale aperto: $PORTAL"
+    else
+        echo "❌ Portale non trovato. Genera prima i dati:"
+        echo "   python3 _portal/generate_data.py"
+    fi
+    exit 0
+fi
+
+# Auto-install
+if [ "$1" = "--install" ]; then
+    mkdir -p "$HOME/.local/bin"
+    ln -sf "$DIR/_bin/pc" "$HOME/.local/bin/pc"
+    echo "✅ pc installato in ~/.local/bin/pc"
+    if ! echo "$PATH" | grep -q "$HOME/.local/bin"; then
+        echo "⚠️  ~/.local/bin non è nel PATH"
+        echo "   Aggiungi al tuo ~/.zshrc:"
+        echo '   export PATH="$HOME/.local/bin:$PATH"'
+    else
+        echo "✅ pc pronto all'uso"
+    fi
+    exit 0
+fi
+
+exec python3 "$DIR/script/pc_agent.py" "$@"
